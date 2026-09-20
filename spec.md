@@ -9,6 +9,8 @@ xml-pages 是 miGears 框架的可选配套模块：一种基于 XML 的声明�
 
 它与 `migears/yaml-pages` 是**同一 DSL 的两种输入格式**：节点模型（body / sections / field / column / component data）与编译产物完全一致，仅解析层不同。两者同时存在，由用户二选一。
 
+两者都是 `migears/pages` 的**语法前端**：把自己的格式解析成数组 IR 后，节点编译、校验、插值、属性透传全部由 pages 包的共享编译器完成（IR 契约见 migears/pages 的 spec.md）。本包只保留 XML 解析层与少量拼写钩子。
+
 它解决三个问题：
 
 1. **AI 生成准确率**——结构化的 XML 声明比混合 HTML/PHP 的模板代码更容易被大模型无差错地生成。
@@ -45,7 +47,7 @@ xml-pages 是 miGears 框架的可选配套模块：一种基于 XML 的声明�
 
 ### 3.2 刻意两次编译
 
-第一次编译：xml-pages 把 XML 声明翻译为 `.tpl.php` 糖语法模板。这一步保留产物可读性——每个 DSL 词汇对应什么模板语法一目了然，开发者通过读产物理解声明语义、掌控生成代码。
+第一次编译：xml-pages 把 XML 声明解析为 `migears/pages` 的数组 IR，由共享编译器翻译为 `.tpl.php` 糖语法模板。这一步保留产物可读性——每个 DSL 词汇对应什么模板语法一目了然，开发者通过读产物理解声明语义、掌控生成代码。
 
 第二次编译：migears/template 的 `TemplateCompiler` 把 `.tpl.php` 编译成纯 PHP 模板文件（mtime 缓存，仅模板变更后重编一次）。渲染由 PHP 执行：模板运行时把变量以 HTML 形式输出给浏览器，声明层不进入运行期。
 
@@ -53,7 +55,7 @@ xml-pages 是 miGears 框架的可选配套模块：一种基于 XML 的声明�
 
 ### 3.3 极轻量
 
-实现规模保持在千行量级（编译器约 1060 行，CLI 约 110 行，组件为纯模板 PHP 文件）。任何让实现显著膨胀的特性都拒绝。
+实现规模保持在千行量级（本包解析层约 440 行——编译逻辑全部在 migears/pages 共享层约 900 行；CLI 约 110 行，组件为纯模板 PHP 文件）。任何让实现显著膨胀的特性都拒绝。
 
 ### 3.4 编译即校验
 
@@ -534,13 +536,13 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 
 ```
 migears-xml-pages/
-├── composer.json            name: migears/xml-pages; require: php >=8.1, migears/template ^2.0
+├── composer.json            name: migears/xml-pages; require: php >=8.1, ext-dom, ext-simplexml, migears/pages ^2.0
 ├── README.md                双语（中英）、架构、安装、快速开始、XML 参考、错误处理、测试说明
 ├── LICENSE
 ├── bin/
 │   └── xml-pages            CLI 入口
 ├── src/
-│   ├── Compiler.php         编译器（核心，约 1060 行）
+│   ├── Compiler.php         XML 解析层（XML → 数组 IR，约 440 行），继承 migears/pages 的共享编译器
 │   └── Exception/
 │       └── CompileException.php
 ├── components/              内置组件模板
@@ -560,11 +562,13 @@ migears-xml-pages/
         └── views/           集成测试用布局
 ```
 
-composer 依赖说明：运行期实际执行的是生成的模板与内置组件，均依赖 migears/template，故设为 `require`。解析层使用 PHP 内置的 SimpleXML（libxml），无 composer 第三方包。
+composer 依赖说明：运行期实际执行的是生成的模板与内置组件，均依赖 migears/template；编译期依赖 migears/pages 的共享编译器，故设为 `require`（pages 包自身声明 migears/template）。解析层使用 PHP 内置的 SimpleXML（libxml），无 composer 第三方包。
 
 ## 11. 测试计划（TDD）
 
 单元测试以 XML 字符串/fixtures 驱动：输入 `.page.xml`，断言编译产物与期望 `.tpl.php` 完全一致（或含指定片段）。
+
+共享编译层的回归测试（节点文法、插值、透传、校验的基类行为）由 migears/pages 的 CompilerTest 承担；本包测试聚焦 XML 解析与继承后的整体行为。
 
 | 分组 | 用例 |
 |------|------|

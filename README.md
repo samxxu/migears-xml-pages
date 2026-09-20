@@ -4,7 +4,7 @@
 
 A declarative XML page definition tool that compiles `.page.xml` declarations into miGears Template files (`.tpl.php`), which the template engine then compiles to pure PHP on first render. The XML declaration is the single source of truth; generated templates are derived artifacts and must not be hand-edited.
 
-Sister package of `migears/yaml-pages`: the same declarative DSL expressed in XML instead of YAML. Identical node model and compiled output — only the parsing layer differs. Pick whichever format you prefer.
+Sister package of `migears/yaml-pages`: the same declarative DSL expressed in XML instead of YAML. Identical node model and compiled output — both frontends parse into the array DSL of `migears/pages`, which owns the shared compiler. Only the parsing layer differs; pick whichever format you prefer.
 
 ## Features
 
@@ -22,7 +22,7 @@ Sister package of `migears/yaml-pages`: the same declarative DSL expressed in XM
 
 **Two deliberate compilations:**
 
-1. xml-pages compiles the XML declaration into `.tpl.php` sugar syntax (`## $expr ##`). The intermediate output stays readable, so each DSL keyword maps visibly to template syntax.
+1. xml-pages parses the XML declaration into the array DSL of `migears/pages`; the shared compiler there turns it into `.tpl.php` sugar syntax (`## $expr ##`). The intermediate output stays readable, so each DSL keyword maps visibly to template syntax.
 2. `migears/template`'s `TemplateCompiler` turns that sugar into a pure PHP template (mtime-cached, recompiled only when the template changes). Rendering is plain PHP: the template runs and its variables are output to the browser as HTML. The declaration layer never enters runtime.
 
 The generated `.tpl.php` file is a derived artifact — re-running the compiler overwrites it. Edit the XML, never the output.
@@ -367,7 +367,7 @@ MIT
 
 基于 XML 的声明式页面定义工具：把 `.page.xml` 页面声明编译为 miGears 模板文件（`.tpl.php`），模板引擎在首次渲染时再将其编译为纯 PHP。XML 声明是唯一事实标准；生成的模板是派生文件，不应手工修改。
 
-与 `migears/yaml-pages` 是姊妹包：同一个声明式 DSL，用 XML 表达。节点模型与编译产物完全一致，只有解析层不同，选哪个格式由你决定。
+与 `migears/yaml-pages` 是姊妹包：同一个声明式 DSL，用 XML 表达。节点模型与编译产物完全一致——两个前端都把各自格式解析成 `migears/pages` 的数组 DSL，共享编译器在那里。只有解析层不同，选哪个格式由你决定。
 
 ## 特性
 
@@ -385,7 +385,7 @@ MIT
 
 **刻意两次编译：**
 
-1. xml-pages 把 XML 声明编译为 `.tpl.php` 糖语法（`## $expr ##`）。中间产物保持可读，每个 DSL 词汇对应什么模板语法一目了然。
+1. xml-pages 把 XML 声明解析为 `migears/pages` 的数组 DSL，由那里的共享编译器翻译为 `.tpl.php` 糖语法（`## $expr ##`）。中间产物保持可读，每个 DSL 词汇对应什么模板语法一目了然。
 2. `migears/template` 的 `TemplateCompiler` 把糖编译成纯 PHP 模板（mtime 缓存，仅模板变更后重编一次）。渲染由 PHP 执行：模板运行时把变量以 HTML 形式输出给浏览器，声明层不进入运行期。
 
 生成的 `.tpl.php` 是派生文件——重新编译即覆盖。修改 XML，不要改产物。
