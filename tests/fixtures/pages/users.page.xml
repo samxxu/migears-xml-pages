@@ -1,0 +1,21 @@
+<page title="用户管理" layout="layout/main">
+    <sections>
+        <section name="title">
+            <text>用户管理</text>
+        </section>
+        <section name="content">
+            <heading level="2">用户列表</heading>
+            <table items="users" as="user" empty="暂无数据">
+                <columns>
+                    <column label="ID" bind="id"/>
+                    <column label="姓名" bind="name"/>
+                    <column label="操作">
+                        <content>
+                            <link href="/users/{{ user.id }}/edit">编辑</link>
+                        </content>
+                    </column>
+                </columns>
+            </table>
+        </section>
+    </sections>
+</page>

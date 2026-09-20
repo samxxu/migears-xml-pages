@@ -1,0 +1,40 @@
+{
+    "name": "migears/xml-pages",
+    "description": "Declarative XML page definitions compiled to miGears template files",
+    "type": "library",
+    "license": "MIT",
+    "version": "2.0.0",
+    "keywords": [
+        "pages",
+        "declarative",
+        "template",
+        "codegen",
+        "migears"
+    ],
+    "require": {
+        "php": "^8.1",
+        "migears/template": "^2.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../migears-template"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "MiGears\\XmlPages\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MiGears\\XmlPages\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    }
+}

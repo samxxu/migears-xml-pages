@@ -1,0 +1,112 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use MiGears\XmlPages\Compiler;
+use MiGears\XmlPages\Exception\CompileException;
+
+foreach ([
+    __DIR__ . '/../vendor/autoload.php',
+    __DIR__ . '/../../../autoload.php',
+] as $autoload) {
+    if (is_file($autoload)) {
+        require $autoload;
+        break;
+    }
+}
+
+const USAGE = <<<TXT
+用法: php xml-pages <命令> [参数]
+
+命令:
+  compile <input> [output-dir] [--check]
+        将 .page.xml 页面声明编译为 .tpl.php 模板
+        <input>       .page.xml 文件或目录（目录时递归处理）
+        [output-dir]  输出目录，缺省与源文件同目录
+        --check       仅校验，不写文件
+
+选项:
+  -h, --help   显示本帮助
+
+TXT;
+
+function usage(int $code): never
+{
+    fwrite($code === 0 ? STDOUT : STDERR, USAGE);
+    exit($code);
+}
+
+$rest = [];
+$check = false;
+foreach (array_slice($argv, 1) as $arg) {
+    if ($arg === '--help' || $arg === '-h') {
+        usage(0);
+    }
+    if ($arg === '--check') {
+        $check = true;
+        continue;
+    }
+    $rest[] = $arg;
+}
+
+if (($rest[0] ?? null) !== 'compile') {
+    usage(1);
+}
+
+$input = $rest[1] ?? null;
+$outputDir = $rest[2] ?? null;
+if ($input === null || count($rest) > 3) {
+    usage(1);
+}
+
+$compiler = new Compiler(function (string $message): void {
+    fwrite(STDERR, "警告: {$message}\n");
+});
+
+$compileOne = function (string $file) use ($compiler, $check, $outputDir): void {
+    if ($check) {
+        $compiler->compileFile($file);
+        echo "校验通过: {$file}\n";
+
+        return;
+    }
+    $target = $compiler->compileToFile($file, $outputDir);
+    echo "编译: {$file} → {$target}\n";
+};
+
+if (is_dir($input)) {
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($input, FilesystemIterator::SKIP_DOTS)
+    );
+    $files = [];
+    foreach ($iterator as $fileInfo) {
+        if ($fileInfo->isFile() && str_ends_with($fileInfo->getFilename(), '.page.xml')) {
+            $files[] = $fileInfo->getPathname();
+        }
+    }
+    sort($files);
+
+    $failed = false;
+    foreach ($files as $file) {
+        try {
+            $compileOne($file);
+        } catch (CompileException $e) {
+            $failed = true;
+            fwrite(STDERR, $file . ': ' . $e->getMessage() . "\n");
+        }
+    }
+    exit($failed ? 1 : 0);
+}
+
+if (! is_file($input)) {
+    fwrite(STDERR, "文件不存在: {$input}\n");
+    exit(1);
+}
+
+try {
+    $compileOne($input);
+} catch (CompileException $e) {
+    fwrite(STDERR, $input . ': ' . $e->getMessage() . "\n");
+    exit(1);
+}
