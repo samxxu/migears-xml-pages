@@ -179,6 +179,10 @@ class Compiler
 
     private function nodesFromElement(SimpleXMLElement $parent, string $path, bool $allowAttr = false): array
     {
+        if ($this->hasBareText($parent)) {
+            $this->error("{$path}: 不能直接写文本或 CDATA（会被丢弃），请用 <text> 包裹");
+        }
+
         $nodes = [];
         $i = 0;
         foreach ($parent->children() as $child) {
@@ -198,20 +202,46 @@ class Compiler
     }
 
     /**
-     * Containers accept exactly the child element names listed here. A stray
-     * child is almost always a typo (colum / feild) that would otherwise make
-     * the whole structure silently incomplete.
+     * Containers accept exactly the child element names listed here, and no bare
+     * text at all. A stray child is almost always a typo (colum / feild) that
+     * would otherwise leave the structure silently incomplete.
      *
      * @param list<string> $allowed
+     * @param bool $allowText leaf-like nodes carry their content as text; containers do not
      */
-    private function assertChildren(SimpleXMLElement $parent, array $allowed, string $path): void
+    private function assertChildren(SimpleXMLElement $parent, array $allowed, string $path, bool $allowText = false): void
     {
+        if (! $allowText && $this->hasBareText($parent)) {
+            $this->error("{$path}: 不能直接写文本或 CDATA（会被丢弃），可用子元素: " . implode(' / ', $allowed));
+        }
+
         foreach ($parent->children() as $child) {
             $name = $child->getName();
             if (! in_array($name, $allowed, true)) {
                 $this->error("{$path}: 不允许的子元素 <{$name}>（可用: " . implode(' / ', $allowed) . '）');
             }
         }
+    }
+
+    /**
+     * Text this element owns directly — bare text and CDATA — as opposed to the
+     * text inside its descendants. SimpleXML's children() yields elements only,
+     * so such text is unreachable from the node model and used to vanish without
+     * a trace; this is what lets us refuse it instead. Whitespace is ignored, so
+     * ordinary indentation never trips it.
+     */
+    private function hasBareText(SimpleXMLElement $el): bool
+    {
+        foreach (dom_import_simplexml($el)->childNodes as $child) {
+            if (! in_array($child->nodeType, [XML_TEXT_NODE, XML_CDATA_SECTION_NODE], true)) {
+                continue;
+            }
+            if (trim((string) $child->nodeValue) !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function nodeFromElement(SimpleXMLElement $el, string $path): array
@@ -251,6 +281,7 @@ class Compiler
                 $node['body'] = $this->nodesFromElement($el->body, $path . '.body');
             }
         } elseif ($type === 'form') {
+            $this->assertChildren($el, ['fields', 'attr'], $path);
             if (isset($el->fields)) {
                 $this->assertChildren($el->fields, ['field'], $path . '.fields');
                 $fields = [];
@@ -260,6 +291,7 @@ class Compiler
                 $node['fields'] = $fields;
             }
         } elseif ($type === 'table') {
+            $this->assertChildren($el, ['columns', 'attr'], $path);
             if (isset($el->columns)) {
                 $this->assertChildren($el->columns, ['column'], $path . '.columns');
                 $columns = [];
@@ -271,6 +303,9 @@ class Compiler
         } elseif ($type === 'component') {
             $this->assertChildren($el, ['data', 'attr'], $path);
             if (isset($el->data)) {
+                if ($this->hasBareText($el->data)) {
+                    $this->error("{$path}.data: 不能直接写文本（会被丢弃），子元素名即数据键");
+                }
                 $data = [];
                 foreach ($el->data->children() as $key => $value) {
                     $data[(string) $key] = trim((string) $value);
@@ -279,8 +314,9 @@ class Compiler
             }
         } else {
             // Leaf nodes (text / heading / link / unknown): element text -> text field.
-            // Nested markup would lose its tags, so only <attr> may appear here.
-            $this->assertChildren($el, ['attr'], $path);
+            // Their text IS the content, so text is allowed; nested markup would
+            // lose its tags, so only <attr> may appear as a child element.
+            $this->assertChildren($el, ['attr'], $path, true);
             $node['text'] = trim((string) $el);
         }
 
@@ -306,6 +342,7 @@ class Compiler
         if (isset($attrs['type']) && $attrs['type'] !== 'field') {
             $this->error("{$path}: type 必须是 \"field\"（元素名已决定节点类型）");
         }
+        $this->assertChildren($el, ['options', 'attr'], $path);
 
         $field = $attrs;
         $field['type'] = 'field';
@@ -319,6 +356,9 @@ class Compiler
             $this->assertChildren($el->options, ['option'], $path . '.options');
             $options = [];
             foreach ($el->options->option as $i => $option) {
+                if ($option->children()->count() > 0) {
+                    $this->error("{$path}.options[{$i}]: <option> 只接受文本内容与 value 属性");
+                }
                 if (! isset($option['value'])) {
                     $this->error("{$path}.options[{$i}]: option 缺少 value 属性");
                 }
@@ -345,6 +385,7 @@ class Compiler
         if (isset($attrs['type']) && $attrs['type'] !== 'column') {
             $this->error("{$path}: type 必须是 \"column\"（元素名已决定节点类型）");
         }
+        $this->assertChildren($el, ['content', 'attr'], $path);
 
         $column = $attrs;
         $column['type'] = 'column';
@@ -379,6 +420,9 @@ class Compiler
     {
         $extra = [];
         foreach ($el->attr as $attr) {
+            if ($attr->children()->count() > 0 || $this->hasBareText($attr)) {
+                $this->error("{$path}: <attr> 只接受 name / value 属性，不能带子内容");
+            }
             if (! isset($attr['name'])) {
                 $this->error("{$path}: <attr> 缺少 name 属性");
             }

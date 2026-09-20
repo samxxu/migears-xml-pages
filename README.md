@@ -123,6 +123,7 @@ Also:
 - `level` and `rows` parse as integers.
 - Don't nest child elements inside leaf nodes (`text` / `heading` / `link`) — child tags are lost, only concatenated text remains; use CDATA for HTML.
 - Unknown attributes, unknown child elements and misspelled container children (`<colum>`) are **compile errors**, never silently ignored; a misspelled node type fails too. See *Front-end Framework Integration* and *Errors*.
+- Containers accept **child elements only**. Text or CDATA written directly inside one is unreachable from the node model, so it is a compile error rather than a silent drop — wrap it in `<text>` (use `<text><![CDATA[...]]></text>` for raw HTML). Indentation whitespace is ignored.
 
 ## Front-end Framework Integration
 
@@ -485,6 +486,7 @@ php bin/xml-pages compile examples/full-featured.page.xml examples/views
 - `level`、`rows` 解析为整数。
 - 叶子节点（`text`/`heading`/`link`）内不要嵌套子元素——嵌套标签会丢失，只剩拼接文本；需要 HTML 时用 CDATA。
 - 未知属性、未知子元素、拼错的容器子元素（如 `<colum>`）**一律编译错误**，不静默丢弃；节点类型写错同样报错。详见《前端框架集成》与《错误处理》。
+- 容器只接受**子元素**。直接写在容器里的文本或 CDATA 够不到节点模型，属编译错误而非静默丢弃——请用 `<text>` 包裹（原样 HTML 用 `<text><![CDATA[...]]></text>`）。缩进空白不算。
 
 ## 前端框架集成
 

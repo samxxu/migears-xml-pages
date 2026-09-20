@@ -114,6 +114,7 @@ xml-pages 是 miGears 框架的可选配套模块：一种基于 XML 的声明�
 - `level`、`rows` 解析为整数。
 - 叶子节点（`text`/`heading`/`link`）内不要嵌套子元素——嵌套元素的标签会丢失，只剩拼接后的文本；需要 HTML 时用 CDATA。
 - 未知属性、未知子元素、拼错的容器子元素（如 `<colum>`）**一律编译错误**，不静默丢弃；节点类型写错报"未知节点类型"。详见 §4.3 与 §9。
+- 容器只接受**子元素**。直接写在容器里的文本或 CDATA 够不到节点模型，因此是编译错误——请用 `<text>` 包裹；需要原样 HTML 时写 `<text><![CDATA[...]]></text>`。缩进产生的空白不算。
 
 ### 4.3 属性透传
 
@@ -521,6 +522,8 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 | 属性无挂载点 | 透传属性或 `<attr>` 出现在不输出标签的节点上 | 节点 <text> 不输出标签，请改用 <el tag="..."> 包裹内容 |
 | 未知/越界子元素 | 容器出现未列出的子元素（`fields` / `columns` / `options` / `sections` / `then` / `else` / `body` / `data`）、叶子节点出现嵌套标签 | 不允许的子元素 <sectoin>（可用: section） |
 | 花括号错乱 | 插值出现 `{{{` 或 `}}}` | 插值符号不能连续三个花括号 |
+| 容器内裸文本 | 容器（`body`/`then`/`else`/`content`/`section`/`el`/`sections`/`fields`/`columns`/`options`/`data`）里直接写文本或 CDATA | 不能直接写文本或 CDATA（会被丢弃），请用 <text> 包裹 |
+| `<attr>` 带子内容 | `<attr>` 有子元素或文本 | `<attr>` 只接受 name / value 属性，不能带子内容 |
 | `<attr>` 误用 | 缺 name/value、与同名属性重复、出现在容器下 | `<attr>` 只能作为会输出标签的节点的子元素 |
 
 编译器为每个节点维护从根到自身的路径（如 `sections.content[2]`），错误必带路径。XML 语法错误无法定位到节点时，输出解析器消息 + 文件路径。
@@ -586,6 +589,7 @@ composer 依赖说明：运行期实际执行的是生成的模板与内置组�
 | attr | `@click` 等简写可达；缺 name/value 报错；同名重复报错；写在容器下报错 |
 | 子元素校验 | 页面根未知子元素报错；叶子节点嵌套标签报错；容器拼错子元素报错（`columns` 的 `<colum>`、`sections` 的 `<sectoin>`、`if` 的多余子树、`each` 的多余子树、`component` 的多余子树） |
 | 插值符号 | `{{{ a }}}` / `{{ a }}}` / `{{{ a }}` 报错；相邻的 `{{ a }}{{ b }}` 仍放行 |
+| 容器内裸文本 | `el` / `then` / `else` / `body` / `content` / `section` / `sections` / `fields` / `columns` / `data` 里的裸文本与 CDATA 一律报错；缩进空白与叶子节点文本不受影响 |
 | 解析提示 | `@click` 导致解析失败时附 `__click` 提示；文本中的邮箱不触发提示 |
 | 转义契约 | 组件 data 插值恰好转义一次（渲染级联测，断言无 `&amp;lt;`） |
 | CLI | 单文件编译 / 目录递归 / output-dir / --check / --help / 失败退出码 |

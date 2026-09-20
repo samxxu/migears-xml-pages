@@ -781,6 +781,74 @@ final class CompilerTest extends TestCase
         }
     }
 
+    public function testBareTextInContainersRejected(): void
+    {
+        $cases = [
+            '<page><body><el tag="div">裸文本</el></body></page>' => 'body[0].body',
+            '<page><body><if when="a"><then>裸文本</then></if></body></page>' => 'then',
+            '<page><body><if when="a"><then><text>T</text></then><else>裸文本</else></if></body></page>' => 'else',
+            '<page><body><each items="u"><body>裸文本</body></each></body></page>' => 'body',
+            '<page><body><table items="u"><columns><column label="A"><content>裸文本</content></column></columns></table></body></page>' => 'content',
+            '<page layout="layout/main"><sections><section name="content">裸文本</section></sections></page>' => 'sections.content',
+            '<page><body>裸文本</body></page>' => 'body',
+            // CDATA 同样够不到节点模型
+            '<page><body><el tag="div"><![CDATA[<b>粗</b>]]></el></body></page>' => 'body[0].body',
+            '<page><body><table items="u"><columns>裸文本<column label="A" bind="b"/></columns></table></body></page>' => 'columns',
+            '<page><body><form action="/s"><fields>裸文本<field name="a" label="A"/></fields></form></body></page>' => 'fields',
+            '<page><body><component name="card"><data>裸文本</data></component></body></page>' => 'data',
+        ];
+        foreach ($cases as $xml => $needle) {
+            try {
+                $this->compile($xml);
+                $this->fail("{$xml} 应当编译失败");
+            } catch (CompileException $e) {
+                $this->assertStringContainsString('不能直接写文本', $e->getMessage(), $xml);
+                $this->assertStringContainsString($needle, $e->getMessage(), $xml);
+            }
+        }
+    }
+
+    public function testIndentationAndLeafTextAreNotBareText(): void
+    {
+        $out = $this->compile("<page><body>\n  <el tag=\"div\">\n    <heading level=\"2\">标题</heading>\n    <text>正文</text>\n  </el>\n</body></page>");
+        $this->assertSame("<div>\n<h2>标题</h2>\n正文\n</div>", $out);
+    }
+
+    public function testStrayChildRejectedEverywhere(): void
+    {
+        $cases = [
+            '<page><body><form action="/s"><fields><field name="a" label="A"/></fields><foo/></form></body></page>',
+            '<page><body><table items="u"><columns><column label="A" bind="b"/></columns><foo/></table></body></page>',
+            '<page><body><form action="/s"><fields><field name="a" label="A"><foo/></field></fields></form></body></page>',
+            '<page><body><table items="u"><columns><column label="A" bind="b"><foo/></column></columns></table></body></page>',
+        ];
+        foreach ($cases as $xml) {
+            try {
+                $this->compile($xml);
+                $this->fail("{$xml} 应当编译失败");
+            } catch (CompileException $e) {
+                $this->assertStringContainsString('不允许的子元素 <foo>', $e->getMessage(), $xml);
+            }
+        }
+    }
+
+    public function testOptionWithChildElementRejected(): void
+    {
+        $this->expectError(
+            '<page><body><form action="/s"><fields><field name="a" label="A" input="select">'
+            . '<options><option value="x"><b>X</b></option></options></field></fields></form></body></page>',
+            '只接受文本内容'
+        );
+    }
+
+    public function testAttrWithChildContentRejected(): void
+    {
+        $this->expectError(
+            '<page><body><el tag="div"><attr name="@click" value="go()">多余</attr></el></body></page>',
+            '不能带子内容'
+        );
+    }
+
     private function compile(string $xml): string
     {
         return $this->compiler->compile($xml);
