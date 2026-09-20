@@ -57,7 +57,7 @@ final class IntegrationTest extends TestCase
     public function testComponentDataIsEscapedExactlyOnce(): void
     {
         $views = $this->tempDir();
-        $compiled = (new Compiler())->compile(
+        $compiled = (new Compiler())->compileSource(
             '<page><body><component name="badge"><data><text>{{ user.name }}</text></data></component></body></page>'
         );
         file_put_contents($views . '/badge-demo.tpl.php', $compiled);

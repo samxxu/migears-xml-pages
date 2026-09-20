@@ -354,7 +354,7 @@ final class CompilerTest extends TestCase
         $compiler = new Compiler(function (string $message) use (&$warnings): void {
             $warnings[] = $message;
         });
-        $compiler->compile('<page title="忽略"><body><text>A</text></body></page>');
+        $compiler->compileSource('<page title="忽略"><body><text>A</text></body></page>');
         $this->assertCount(1, $warnings);
         $this->assertStringContainsString('title', $warnings[0]);
     }
@@ -851,7 +851,7 @@ final class CompilerTest extends TestCase
 
     private function compile(string $xml): string
     {
-        return $this->compiler->compile($xml);
+        return $this->compiler->compileSource($xml);
     }
 
     private function expectError(string $xml, string $needle): void
