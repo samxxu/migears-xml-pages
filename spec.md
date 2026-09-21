@@ -112,7 +112,7 @@ xml-pages 是 miGears 框架的可选配套模块：一种基于 XML 的声明�
 
 - 属性值用双引号包裹；值内含双引号时可用 `&quot;` 或单引号包裹属性值（`href='/x'`）。
 - `{{ path }}` 插值在 XML 中**无需转义**——`{`、`}` 不是 XML 特殊字符，这是相对 YAML 的天然优势。
-- `required="true"` 解析为布尔；`"true"`/`"1"`/`"yes"`/`"on"`（大小写不敏感）均为真。
+- `required` 按 HTML 布尔属性语义解析：`"true"`/`"1"`/`"yes"`/`"on"`（大小写不敏感）为真，`"false"`/`"0"`/`"no"`/`"off"` 为假，`required=""` 与 `required="required"` 均视为「存在」（HTML 的两种 present 写法）。其余拼写一律编译错误——静默判假会把属性悄悄丢掉，属本模块明令禁止的静默丢弃。
 - `level`、`rows` 解析为整数。
 - 叶子节点（`text`/`heading`/`link`）内不要嵌套子元素——嵌套元素的标签会丢失，只剩拼接后的文本；需要 HTML 时用 CDATA。
 - 未知属性、未知子元素、拼错的容器子元素（如 `<colum>`）**一律编译错误**，不静默丢弃；节点类型写错报"未知节点类型"。详见 §4.3 与 §9。
@@ -515,6 +515,7 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 | 结构错误 | 顶层规则违反、section 缺 name、option 缺 value | 同时指定 body 与 sections |
 | 未知节点 | 元素名不在词表 | 未知节点类型 |
 | 字段缺失/非法 | 必填属性缺失、枚举越界、类型不符 | if 缺 when；level 为 7 |
+| 布尔属性拼写错误 | `required` 的值不在真假词表与两种「存在」写法之内 | required 的值 "maybe" 不是布尔；真值可用 true / 1 / yes / on / required / 空值，假值可用 false / 0 / no / off |
 | 路径错误 | 插值/路径文法不匹配 | 非法表达式 |
 | 上下文错误 | bind/content 互斥等 | column 同时含 bind 与 content |
 | 字面量错误 | 字面量字段写了 `{{ }}` | "empty" 是字面量字段，不支持 {{ }} 插值 |
@@ -579,6 +580,7 @@ composer 依赖说明：运行期实际执行的是生成的模板与内置组�
 | 条件 | if then / if then+else / `!` 取反 / when 缺失报错 |
 | 循环 | each 基础 / index / 嵌套 / items 缺失报错 |
 | 表单 | 各 input 枚举 / select options / checkbox checked / submit / 非法枚举 / select 缺 options / options 用在不支持的 input / option 缺 value 报错 |
+| 布尔属性 | required 真值词表与假值词表（大小写不敏感）、`required=""` 与 `required="required"` 视为真、未知拼写报错并列出可用值 |
 | 表格 | bind 列 / content 列 / empty / as 默认与自定义 / bind+content 同存报错 / columns 缺失报错 |
 | 布局 | layout+sections / body 独立 / 两者同存报错 / 双缺失报错 / title section / section 缺 name 报错 |
 | 组件 | 无 data / data 插值（PHP 上下文拼接）/ data 字面量 |

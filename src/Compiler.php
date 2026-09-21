@@ -27,6 +27,8 @@ class Compiler extends PagesCompiler
 {
     private const TRUE_VALUES = ['true', '1', 'yes', 'on'];
 
+    private const FALSE_VALUES = ['false', '0', 'no', 'off'];
+
     /**
      * XML spells the '@event' shorthand as '__event', so that is the form the
      * hyphenated-directive hint should suggest. The base suggests '@event',
@@ -258,7 +260,7 @@ class Compiler extends PagesCompiler
             $node['rows'] = (int) $node['rows'];
         }
         if (isset($node['required'])) {
-            $node['required'] = $this->toBool($node['required']);
+            $node['required'] = $this->toBool($path, 'required', $node['required']);
         }
 
         return $node;
@@ -298,7 +300,7 @@ class Compiler extends PagesCompiler
             $field['options'] = $options;
         }
         if (isset($field['required'])) {
-            $field['required'] = $this->toBool($field['required']);
+            $field['required'] = $this->toBool($path, 'required', $field['required']);
         }
         if (isset($field['rows'])) {
             $field['rows'] = (int) $field['rows'];
@@ -333,9 +335,31 @@ class Compiler extends PagesCompiler
         return $column;
     }
 
-    private function toBool(string $value): bool
+    /**
+     * Read a boolean attribute the way HTML does: a known truthy or falsy word,
+     * or one of the two spellings that mean "present" — an empty value
+     * (`required=""`) or the attribute's own name (`required="required"`).
+     *
+     * Any other spelling is a mistake, and answering false to it would drop the
+     * attribute without a trace — the silent loss this module refuses.
+     */
+    private function toBool(string $where, string $name, string $value): bool
     {
-        return in_array(strtolower(trim($value)), self::TRUE_VALUES, true);
+        $normalised = strtolower(trim($value));
+
+        if ($normalised === '' || $normalised === $name) {
+            return true;
+        }
+        if (in_array($normalised, self::TRUE_VALUES, true)) {
+            return true;
+        }
+        if (in_array($normalised, self::FALSE_VALUES, true)) {
+            return false;
+        }
+
+        $this->error("{$where}: {$name} 的值 \"{$value}\" 不是布尔；真值可用 "
+            . implode(' / ', self::TRUE_VALUES) . ' / ' . $name . ' / 空值，假值可用 '
+            . implode(' / ', self::FALSE_VALUES));
     }
 
     /**

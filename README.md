@@ -119,7 +119,7 @@ Escaping and special characters:
 Also:
 
 - `{{ path }}` needs **no escaping in XML** — `{` / `}` are not XML-special. A plus over YAML.
-- `required="true"` parses as boolean; `"true"` / `"1"` / `"yes"` / `"on"` (case-insensitive) are true.
+- `required` is read the way HTML reads a boolean attribute: `"true"` / `"1"` / `"yes"` / `"on"` (case-insensitive) are true, `"false"` / `"0"` / `"no"` / `"off"` are false, and `required=""` / `required="required"` both count as present. Any other spelling is a compile error — answering false would drop the attribute silently.
 - `level` and `rows` parse as integers.
 - Don't nest child elements inside leaf nodes (`text` / `heading` / `link`) — child tags are lost, only concatenated text remains; use CDATA for HTML.
 - Unknown attributes, unknown child elements and misspelled container children (`<colum>`) are **compile errors**, never silently ignored; a misspelled node type fails too. See *Front-end Framework Integration* and *Errors*.
@@ -482,7 +482,7 @@ php bin/xml-pages compile examples/full-featured.page.xml examples/views
 其余注意：
 
 - `{{ path }}` 插值在 XML 中**无需转义**——`{`、`}` 不是 XML 特殊字符，这是相对 YAML 的优势。
-- `required="true"` 解析为布尔；`"true"`/`"1"`/`"yes"`/`"on"`（大小写不敏感）均为真。
+- `required` 按 HTML 布尔属性语义解析：`"true"`/`"1"`/`"yes"`/`"on"`（大小写不敏感）为真，`"false"`/`"0"`/`"no"`/`"off"` 为假，`required=""` 与 `required="required"` 均视为「存在」。其余拼写一律编译错误——静默判假会把属性悄悄丢掉。
 - `level`、`rows` 解析为整数。
 - 叶子节点（`text`/`heading`/`link`）内不要嵌套子元素——嵌套标签会丢失，只剩拼接文本；需要 HTML 时用 CDATA。
 - 未知属性、未知子元素、拼错的容器子元素（如 `<colum>`）**一律编译错误**，不静默丢弃；节点类型写错同样报错。详见《前端框架集成》与《错误处理》。

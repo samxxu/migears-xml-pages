@@ -175,6 +175,35 @@ final class CompilerTest extends TestCase
         );
     }
 
+    public function testRequiredReadsHtmlBooleanSpellings(): void
+    {
+        $compile = fn (string $attr): string => $this->compile('<page><body><form action="/s"><fields>'
+            . '<field name="a" label="A" ' . $attr . '/>'
+            . '</fields></form></body></page>');
+
+        // word lists, case-insensitive
+        foreach (['required="true"', 'required="TRUE"', 'required="yes"', 'required="on"', 'required="1"'] as $attr) {
+            self::assertStringContainsString(' required>', $compile($attr), $attr);
+        }
+        // HTML reads a boolean attribute as true when it is present but empty,
+        // and when its value repeats its own name
+        foreach (['required=""', 'required="required"'] as $attr) {
+            self::assertStringContainsString(' required>', $compile($attr), $attr);
+        }
+
+        foreach (['required="false"', 'required="FALSE"', 'required="no"', 'required="off"', 'required="0"'] as $attr) {
+            self::assertStringNotContainsString(' required>', $compile($attr), $attr);
+        }
+    }
+
+    public function testRequiredRejectsUnknownBooleanSpelling(): void
+    {
+        $this->expectError(
+            '<page><body><form action="/s"><fields><field name="a" label="A" required="maybe"/></fields></form></body></page>',
+            'required 的值 "maybe" 不是布尔'
+        );
+    }
+
     public function testFormTextarea(): void
     {
         $out = $this->compile('<page><body><form action="/s"><fields>'
