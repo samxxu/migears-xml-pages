@@ -113,7 +113,7 @@ xml-pages 是 miGears 框架的可选配套模块：一种基于 XML 的声明�
 - 属性值用双引号包裹；值内含双引号时可用 `&quot;` 或单引号包裹属性值（`href='/x'`）。
 - `{{ path }}` 插值在 XML 中**无需转义**——`{`、`}` 不是 XML 特殊字符，这是相对 YAML 的天然优势。
 - `required` 按 HTML 布尔属性语义解析：`"true"`/`"1"`/`"yes"`/`"on"`（大小写不敏感）为真，`"false"`/`"0"`/`"no"`/`"off"` 为假，`required=""` 与 `required="required"` 均视为「存在」（HTML 的两种 present 写法）。其余拼写一律编译错误——静默判假会把属性悄悄丢掉，属本模块明令禁止的静默丢弃。
-- `level`、`rows` 解析为整数。
+- `level`、`rows` 解析为十进制整数；非数字值（如 `level="two"`）属编译错误，范围校验（如 `level` 为 1–6）仍由共享编译器负责。
 - 叶子节点（`text`/`heading`/`link`）内不要嵌套子元素——嵌套元素的标签会丢失，只剩拼接后的文本；需要 HTML 时用 CDATA。
 - 未知属性、未知子元素、拼错的容器子元素（如 `<colum>`）**一律编译错误**，不静默丢弃；节点类型写错报"未知节点类型"。详见 §4.3 与 §9。
 - 容器只接受**子元素**。直接写在容器里的文本或 CDATA 够不到节点模型，因此是编译错误——请用 `<text>` 包裹；需要原样 HTML 时写 `<text><![CDATA[...]]></text>`。缩进产生的空白不算。
@@ -516,6 +516,7 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 | 未知节点 | 元素名不在词表 | 未知节点类型 |
 | 字段缺失/非法 | 必填属性缺失、枚举越界、类型不符 | if 缺 when；level 为 7 |
 | 布尔属性拼写错误 | `required` 的值不在真假词表与两种「存在」写法之内 | required 的值 "maybe" 不是布尔；真值可用 true / 1 / yes / on / required / 空值，假值可用 false / 0 / no / off |
+| 整数属性拼写错误 | `level` / `rows` 的值不是十进制整数 | level 的值 "two" 不是整数；请写十进制数字（如 2） |
 | 路径错误 | 插值/路径文法不匹配 | 非法表达式 |
 | 上下文错误 | bind/content 互斥等 | column 同时含 bind 与 content |
 | 字面量错误 | 字面量字段写了 `{{ }}` | "empty" 是字面量字段，不支持 {{ }} 插值 |
@@ -529,7 +530,7 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 | `<attr>` 带子内容 | `<attr>` 有子元素或文本 | `<attr>` 只接受 name / value 属性，不能带子内容 |
 | `<attr>` 误用 | 缺 name/value、与同名属性重复、出现在容器下 | `<attr>` 只能作为会输出标签的节点的子元素 |
 
-编译器为每个节点维护从根到自身的路径（如 `sections.content[2]`），错误必带路径。XML 语法错误无法定位到节点时，输出解析器消息 + 文件路径。
+编译器为每个节点维护从根到自身的路径（如 `sections.content[2]`），错误必带路径。路径中的下标一律是位置（`body[0]`、`fields[0]`、`columns[0]`、`sections[0]`、`options[0]`），不是元素名——SimpleXML 迭代重复子元素时给出的键是元素名，前端统一经 `childList()` 归一为位置索引。XML 语法错误无法定位到节点时，输出解析器消息 + 文件路径。
 
 共享层的列表与类型守卫（`requireList()` 的列表形态判定、`required` 布尔、`option` 文本、`layout` / `title` 字符串等）在 XML 侧不可达：前端解析时属性一律是字符串并按需归一（`level` / `rows` 转整数、`required` 转布尔），容器子元素必然被构造成列表。这些守卫是三个前端共享同一份编译契约的防线，对数组 DSL 与 YAML 前端则是可达路径。
 
@@ -581,6 +582,8 @@ composer 依赖说明：运行期实际执行的是生成的模板与内置组�
 | 循环 | each 基础 / index / 嵌套 / items 缺失报错 |
 | 表单 | 各 input 枚举 / select options / checkbox checked / submit / 非法枚举 / select 缺 options / options 用在不支持的 input / option 缺 value 报错 |
 | 布尔属性 | required 真值词表与假值词表（大小写不敏感）、`required=""` 与 `required="required"` 视为真、未知拼写报错并列出可用值 |
+| 整数属性 | level / rows 的十进制写法可用、非数字报语法错误、越界仍由共享层报范围错误 |
+| 路径下标 | fields / columns / sections / options 的错误路径使用位置下标（`fields[0]`，不是 `fields[field]`） |
 | 表格 | bind 列 / content 列 / empty / as 默认与自定义 / bind+content 同存报错 / columns 缺失报错 |
 | 布局 | layout+sections / body 独立 / 两者同存报错 / 双缺失报错 / title section / section 缺 name 报错 |
 | 组件 | 无 data / data 插值（PHP 上下文拼接）/ data 字面量 |

@@ -97,7 +97,7 @@ class Compiler extends PagesCompiler
         if (isset($page->sections)) {
             $this->assertChildren($page->sections, ['section'], 'sections');
             $sections = [];
-            foreach ($page->sections->section as $i => $section) {
+            foreach ($this->childList($page->sections, 'section') as $i => $section) {
                 if (! isset($section['name'])) {
                     $this->error("sections[{$i}]: section 缺少 name 属性");
                 }
@@ -108,6 +108,26 @@ class Compiler extends PagesCompiler
         }
 
         return $out;
+    }
+
+    /**
+     * The repeated children of an element, as a plain list.
+     *
+     * Iterating a SimpleXML repetition (`$el->fields->field`) yields the element
+     * *name* as the key, not a position, so `foreach (… as $i => …)` would build
+     * paths like "fields[field]" instead of the "fields[0]" spelling every path
+     * in this project uses. Going through a list restores real indexes.
+     *
+     * @return list<SimpleXMLElement>
+     */
+    private function childList(SimpleXMLElement $parent, string $name): array
+    {
+        $list = [];
+        foreach ($parent->{$name} as $child) {
+            $list[] = $child;
+        }
+
+        return $list;
     }
 
     private function nodesFromElement(SimpleXMLElement $parent, string $path, bool $allowAttr = false): array
@@ -218,7 +238,7 @@ class Compiler extends PagesCompiler
             if (isset($el->fields)) {
                 $this->assertChildren($el->fields, ['field'], $path . '.fields');
                 $fields = [];
-                foreach ($el->fields->field as $i => $field) {
+                foreach ($this->childList($el->fields, 'field') as $i => $field) {
                     $fields[] = $this->fieldFromElement($field, $path . '.fields[' . $i . ']');
                 }
                 $node['fields'] = $fields;
@@ -228,7 +248,7 @@ class Compiler extends PagesCompiler
             if (isset($el->columns)) {
                 $this->assertChildren($el->columns, ['column'], $path . '.columns');
                 $columns = [];
-                foreach ($el->columns->column as $i => $column) {
+                foreach ($this->childList($el->columns, 'column') as $i => $column) {
                     $columns[] = $this->columnFromElement($column, $path . '.columns[' . $i . ']');
                 }
                 $node['columns'] = $columns;
@@ -254,10 +274,10 @@ class Compiler extends PagesCompiler
         }
 
         if (isset($node['level'])) {
-            $node['level'] = (int) $node['level'];
+            $node['level'] = $this->toInt($path, 'level', $node['level']);
         }
         if (isset($node['rows'])) {
-            $node['rows'] = (int) $node['rows'];
+            $node['rows'] = $this->toInt($path, 'rows', $node['rows']);
         }
         if (isset($node['required'])) {
             $node['required'] = $this->toBool($path, 'required', $node['required']);
@@ -288,7 +308,7 @@ class Compiler extends PagesCompiler
         if (isset($el->options)) {
             $this->assertChildren($el->options, ['option'], $path . '.options');
             $options = [];
-            foreach ($el->options->option as $i => $option) {
+            foreach ($this->childList($el->options, 'option') as $i => $option) {
                 if ($option->children()->count() > 0) {
                     $this->error("{$path}.options[{$i}]: <option> 只接受文本内容与 value 属性");
                 }
@@ -303,7 +323,7 @@ class Compiler extends PagesCompiler
             $field['required'] = $this->toBool($path, 'required', $field['required']);
         }
         if (isset($field['rows'])) {
-            $field['rows'] = (int) $field['rows'];
+            $field['rows'] = $this->toInt($path, 'rows', $field['rows']);
         }
 
         return $field;
@@ -360,6 +380,25 @@ class Compiler extends PagesCompiler
         $this->error("{$where}: {$name} 的值 \"{$value}\" 不是布尔；真值可用 "
             . implode(' / ', self::TRUE_VALUES) . ' / ' . $name . ' / 空值，假值可用 '
             . implode(' / ', self::FALSE_VALUES));
+    }
+
+    /**
+     * Read an integer attribute.
+     *
+     * `level` and `rows` are counts and sizes, so the only spellable value is a
+     * decimal number. Casting silently turned "two" into 0, and the failure then
+     * arrived as a range complaint ("level 必须是 1-6 的整数，收到 0") about a
+     * value nobody wrote. Reading the syntax here leaves range and enum checks
+     * to the shared compiler, which is where they belong.
+     */
+    private function toInt(string $where, string $name, string $value): int
+    {
+        $normalised = trim($value);
+        if (! preg_match('/^[+-]?\d+$/', $normalised)) {
+            $this->error("{$where}: {$name} 的值 \"{$value}\" 不是整数；请写十进制数字（如 2）");
+        }
+
+        return (int) $normalised;
     }
 
     /**

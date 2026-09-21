@@ -58,6 +58,26 @@ final class CompilerTest extends TestCase
         $this->expectError('<page><body><heading level="7">x</heading></body></page>', 'level');
     }
 
+    public function testLevelAndRowsMustBeWrittenAsIntegers(): void
+    {
+        // Casting first turned "two" into 0, which then reported a range error
+        // ("level 必须是 1-6 的整数，收到 0") about a value nobody wrote.
+        $this->expectError('<page><body><heading level="two">标题</heading></body></page>', 'level 的值 "two" 不是整数');
+        $this->expectError(
+            '<page><body><form action="/s"><fields><field name="b" label="B" input="textarea" rows="x"/></fields></form></body></page>',
+            'rows 的值 "x" 不是整数'
+        );
+        // the out-of-range case stays a range error: syntax here, range in the shared compiler
+        $this->expectError('<page><body><heading level="-1">标题</heading></body></page>', 'level 必须是 1-6 的整数');
+    }
+
+    public function testLevelAndRowsReadDecimalStrings(): void
+    {
+        $this->assertSame('<h3>标题</h3>', $this->compile('<page><body><heading level="3">标题</heading></body></page>'));
+        $out = $this->compile('<page><body><form action="/s"><fields><field name="b" label="B" input="textarea" rows="6"/></fields></form></body></page>');
+        $this->assertStringContainsString('rows="6"', $out);
+    }
+
     public function testLinkWithInterpolation(): void
     {
         $out = $this->compile('<page><body><link href="/users/{{ user.id }}/edit">编辑</link></body></page>');
@@ -875,6 +895,30 @@ final class CompilerTest extends TestCase
         $this->expectError(
             '<page><body><el tag="div"><attr name="@click" value="go()">多余</attr></el></body></page>',
             '不能带子内容'
+        );
+    }
+
+    public function testErrorPathsUseNumericIndexes(): void
+    {
+        // Iterating a SimpleXML repetition hands over the element name as the
+        // key, so a foreach key builds "fields[field]" — not the index form every
+        // path in this project uses.
+        $this->expectError(
+            '<page><body><form action="/s"><fields><field name="a" label="A" required="maybe"/></fields></form></body></page>',
+            'body[0].fields[0]: '
+        );
+        $this->expectError(
+            '<page><body><form action="/s"><fields><field name="a" label="A" input="select">'
+            . '<options><option>X</option></options></field></fields></form></body></page>',
+            'body[0].fields[0].options[0]: '
+        );
+        $this->expectError(
+            '<page><body><table items="u"><columns><column label="A"/></columns></table></body></page>',
+            'body[0].columns[0]: '
+        );
+        $this->expectError(
+            '<page layout="layout/main"><sections><section><text>x</text></section></sections></page>',
+            'sections[0]: '
         );
     }
 
