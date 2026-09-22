@@ -424,6 +424,13 @@ class Compiler extends PagesCompiler
             if (! isset($attr['value'])) {
                 $this->error("{$path}: <attr name=\"{$name}\"> 缺少 value 属性");
             }
+            // Two <attr> with the same name would collapse into one key here and
+            // the first would vanish silently, so the clash is named while both
+            // are still visible. (A clash with a plain attribute of the same
+            // name is caught later, by the duplicate check in the shared layer.)
+            if (isset($extra[$name])) {
+                $this->error("{$path}: <attr name=\"{$name}\"> 重复定义，同名属性只允许出现一次");
+            }
             $extra[$name] = (string) $attr['value'];
         }
 

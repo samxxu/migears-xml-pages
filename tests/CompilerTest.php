@@ -922,6 +922,57 @@ final class CompilerTest extends TestCase
         );
     }
 
+    public function testTwoAttrsWithTheSameNameAreRejected(): void
+    {
+        $this->expectError(
+            '<page><body><el tag="div">'
+            . '<attr name="class" value="a"/><attr name="class" value="b"/>'
+            . '</el></body></page>',
+            'body[0]: <attr name="class"> 重复定义'
+        );
+    }
+
+    public function testFieldScopeIsEnforcedForStringSourcesToo(): void
+    {
+        // Attributes arrive as strings here, but the scope of a field does not
+        // depend on the frontend that spelled it.
+        $this->expectError(
+            '<page><body><form action="/s"><fields>'
+            . '<field name="a" label="A" input="select" placeholder="p">'
+            . '<options><option value="x">X</option></options></field>'
+            . '</fields></form></body></page>',
+            '"placeholder" 仅用于 text / password / email / number 字段，当前 input 是 "select"'
+        );
+    }
+
+    public function testRequiredReachesTextareaAndCheckbox(): void
+    {
+        $out = $this->compile('<page><body><form action="/s"><fields>'
+            . '<field name="b" label="B" input="textarea" required="true"/>'
+            . '<field name="c" label="C" input="checkbox" required="true"/>'
+            . '</fields></form></body></page>');
+
+        $this->assertStringContainsString('<textarea name="b" id="b" rows="4" required>', $out);
+        $this->assertStringContainsString('<input type="checkbox" name="c" id="c" required>', $out);
+    }
+
+    public function testOptionTextRejectsInterpolation(): void
+    {
+        $this->expectError(
+            '<page><body><form action="/s"><fields><field name="s" label="S" input="select">'
+            . '<options><option value="a">{{ a }}</option></options></field></fields></form></body></page>',
+            '不支持 {{ }} 插值'
+        );
+    }
+
+    public function testEmptyPathSegmentRejected(): void
+    {
+        $this->expectError(
+            '<page><body><link href="/u/{{ user..name }}">编辑</link></body></page>',
+            '非法路径 "user..name"'
+        );
+    }
+
     private function compile(string $xml): string
     {
         return $this->compiler->compileSource($xml);
