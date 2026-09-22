@@ -15,9 +15,10 @@
   编译（产物落到 examples/views/，与 layout 同处一个模板搜索路径）：
       php bin/xml-pages compile examples/full-featured.page.xml examples/views
 
-  渲染：
+  渲染（内置组件在包内 components/，本示例的自定义组件在 examples/components/）：
       $tpl = new Template(__DIR__ . '/examples/views');
-      $tpl->addPath(__DIR__ . '/components');   // 让内置组件可被找到
+      $tpl->addPath(__DIR__ . '/components');            // 内置组件：card / button / alert / badge
+      $tpl->addPath(__DIR__ . '/examples/components');   // 自定义组件：my-card
       echo $tpl->render('full-featured', $data);
 
   注：layout 与 body 互斥，无法在同一文件内同时演示。无 layout 的独立页面
@@ -239,6 +240,15 @@
                 </data>
             </component>
 
+            <!-- my-card：本示例自带的自定义组件，文件在 examples/components/my-card.php，
+                 与内置组件的区别只是它不在包内分发。见文件末尾「附：自定义组件」 -->
+            <component name="my-card">
+                <data>
+                    <title>自定义组件 · {{ user.name }}</title>
+                    <body><![CDATA[body 由组件模板用 raw() 输出，故这里可以写 <em>HTML</em> 片段。]]></body>
+                </data>
+            </component>
+
             <!-- ======================================================
                  7. el / 属性透传 / attr —— 前端框架集成
                  <el> 是通用容器；框架指令原样输出到标签；
@@ -312,15 +322,42 @@
   附：自定义组件
   ==================================================================
 
-  按 migears/template 的 component 规范自行编写 PHP 模板文件
-  （如 components/my-card.php），再用 name 引用即可，无需注册：
+  上面第 6 节的 my-card 就是一个自定义组件：文件是 examples/components/my-card.php，
+  页面里用 name="my-card" 引用即可，无需注册——只要它所在目录已经 addPath 进
+  模板搜索路径。
+
+  自己写一个组件，三步：
+
+  1) 写组件文件。组件就是普通的 miGears Template 文件（.php 或 .tpl.php 均可；
+     .tpl.php 里 ## $x ## 是转义输出、### $x ### 才是原样输出，且会多一份编译缓存产物）：
+
+      // components/my-card.php
+      <div class="my-card">
+          <h3><?= $this->e($title ?? '') ?></h3>
+          <div><?= $this->raw((string) ($body ?? '')) ?></div>
+      </div>
+
+  2) 让它的目录可被找到。后 addPath 的目录先被搜索，所以把同名文件放进后注册的
+     目录即可覆盖内置组件（主题覆盖）：
+
+      $tpl->addPath(__DIR__ . '/components');
+
+  3) 在页面里按名引用：
 
       <component name="my-card">
           <data>
-              <heading>{{ user.name }}</heading>
+              <title>{{ user.name }}</title>
+              <body><![CDATA[正文，可含 <em>HTML</em>。]]></body>
           </data>
       </component>
 
-  本示例未启用该片段——它需要你自行提供 my-card.php，否则渲染期找不到
-  组件文件。内置的 card / button / alert / badge 则随包分发，开箱可用。
+  要点：
+    · 名字 = 相对某个已注册路径的路径，所以子目录可以直接用：name="admin/table"
+      命中 <path>/admin/table.php。同一份文件换个基准路径就换个名字：注册了
+      components/ 目录时它叫 card，注册包根时它叫 components/card。
+    · data 的键在组件内成为局部变量，值只能是字符串；页面的其它变量不会透传进组件。
+    · data 的值以未转义形式送达，转义与否由组件模板决定：文本用 $this->e()，
+      信任的 HTML 用 $this->raw()。页面侧预转义会叠成双重转义。
+    · <component> 自身不输出标签，挂不上 class 等属性；需要外层属性时用 <el> 包裹。
+    · 组件缺失不会在编译期报错，渲染时才抛 Component not found: <name>。
 -->
