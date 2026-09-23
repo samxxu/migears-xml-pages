@@ -1,3 +1,630 @@
+# migears/xml-pages Module Specification
+
+Version: 2.0.0 (draft, pending review)
+Date: 2026-09-20
+
+## 1. Positioning
+
+xml-pages is an optional companion module for the miGears framework: an XML-based declarative page definition tool that compiles page declarations into template files of migears/template (`.tpl.php` syntax). It is not a core component and carries no runtime responsibility; it does only the compile-time "declaration → template" translation.
+
+It is **two input formats for the same DSL** as `migears/yaml-pages`: the node model (body / sections / field / column / component data) and the compiled output are completely identical; only the parsing layer differs. Both exist and the user picks one.
+
+Both are **syntax frontends** for `migears/pages`: after each parses its own format into an array IR, node compilation, validation, interpolation and attribute passthrough are all done by the shared compiler in the pages package (see migears/pages' spec.md for the IR contract). This package keeps only the XML parsing layer and a few spelling hooks.
+
+It solves three problems:
+
+1. **AI generation accuracy** — structured XML declarations are more reliably generated without errors by large models than mixed HTML/PHP template code.
+2. **Readable page structure** — what a page looks like and which data it binds is clear at a glance from the XML, so non-developers can participate too.
+3. **Extend rather than replace** — migears/template itself is minimal and limited; xml-pages fixes common page shapes (lists, forms, conditionals, loops) with a declarative abstraction, letting business development focus on data and structure.
+
+## 2. Scope
+
+### 2.1 In scope
+
+- Page structure definition (node tree)
+- Data binding (`{{ path }}` interpolation)
+- Conditional display (`if`)
+- Loops / lists (`each`, `table`)
+- Form fields (`form` + `field`)
+- Table column definitions (`table` + `column`)
+- Layout inheritance (`layout` + `sections`)
+- Built-in components + custom component references
+- Attribute passthrough (front-end framework directives and `class` / `id` / `style` emitted verbatim on the tag)
+- The generic element node `el` (an attribute container for things like `x-data`)
+
+### 2.2 Out of scope (explicitly not done)
+
+- Business logic, event handling, state management, routing definition — never go into XML; those belong to the front-end framework
+- Runtime XML parsing — compilation is the only entry point; runtime depends only on the generated template
+- Composer third-party dependencies — the parsing layer uses PHP's built-in SimpleXML (libxml), zero external dependencies
+- XML Schema / DTD validation — no schema documents; all structural validation happens at compile time
+
+## 3. Core Principles
+
+### 3.1 XML is the single source of truth
+
+Every change to a page is made back in XML. The generated `.tpl.php` is a **derived file** that can be overwritten at any time by recompiling and must not be hand-edited. The workflow is fixed as: edit XML → run the compiler → render.
+
+### 3.2 Two deliberate compilations
+
+First compilation: xml-pages parses the XML declaration into the array IR of `migears/pages`, whose shared compiler translates it into a `.tpl.php` sugar-syntax template. This step keeps the output readable — it is obvious at a glance which template syntax each DSL keyword maps to, and developers understand the declaration semantics and control the generated code by reading the output.
+
+Second compilation: migears/template's `TemplateCompiler` compiles the `.tpl.php` into a pure PHP template (mtime-cached, recompiled only when the template changes). Rendering is done by PHP: the template runtime outputs variables to the browser as HTML; the declaration layer never enters runtime.
+
+Both compilations matter. Neither is merged nor elided.
+
+### 3.3 Extremely lightweight
+
+The implementation stays at the thousand-line scale (this package's parsing layer is about 500 lines — all compilation logic lives in the migears/pages shared layer, about 1050 lines; the CLI is about 110 lines; components are plain template PHP files). Any feature that would significantly bloat the implementation is rejected.
+
+### 3.4 Compile is validation
+
+Structure, fields, paths and attributes are fully validated at compile time, with **no silent drops**: unknown attributes, unknown child elements and misspelled container children all error out. Any scenario where XML cannot express the template capability is rejected at compile time instead of inventing workaround syntax on the XML side — the sole exception is §4.4's `<attr>`, which addresses a limitation of the XML language itself (`@` cannot appear in attribute names), not a template capability.
+
+## 4. Declaration Format
+
+File extension `.page.xml`; the compiled artifact takes the same name with `.tpl.php` (e.g. `users.page.xml` → `users.tpl.php`).
+
+The root element must be `<page>`, whose attributes are the top-level fields and whose child elements are the content:
+
+```xml
+<page title="用户管理" layout="layout/admin">
+  <sections>
+    <section name="title">...</section>
+    <section name="content">...</section>
+  </sections>
+</page>
+```
+
+### 4.1 Top-level fields
+
+| Field | Form | Required | Meaning |
+|------|------|------|------|
+| `title` | `<page>` attribute | no | Page title, written into the `title` section |
+| `layout` | `<page>` attribute | no | Inherited layout template name (e.g. `layout/admin`) |
+| `body` | `<page>` child | conditional | Page body node tree when there is no `layout` |
+| `sections` | `<page>` child | conditional | Contains several `<section name="...">`, paired with `layout` |
+
+Rules: when `layout` is present, `sections` is required and `body` is forbidden; when `layout` is absent, `body` is required and `sections` is forbidden. Violating this is a compile error.
+
+A `<section>` must have a `name` attribute; its children form the node-tree array. When the `title` attribute is present, a `title` section is generated automatically (only effective with `layout`; ignored with a warning when there is no `layout`).
+
+### 4.2 XML writing notes
+
+The parsing layer is libxml (PHP's built-in SimpleXML). Correspondences to the node model:
+
+- **Element name is the node type**: `<text>`, `<heading>`, `<link>`, `<if>`, `<each>`, `<form>`, `<table>`, `<el>`, `<component>`.
+- **Fields go in attributes**: e.g. `<heading level="2">`, `<link href="..." target="_blank">`, `<if when="...">`.
+- **Text content goes in the element text**: the element text of `<text>`, `<heading>`, `<link>` is the `text` field; leading/trailing whitespace is trimmed.
+- **Container children**: `<if>`'s children are `<then>`/`<else>`; `<each>`'s is `<body>`; `<form>`'s is `<fields>` (containing `<field>`); `<table>`'s is `<columns>` (containing `<column>`); `<field>`'s is `<options>` (containing `<option value="...">`); `<column>`'s is `<content>`; `<component>`'s is `<data>` (child element names are the data keys).
+
+Escaping and special characters:
+
+| Case | Write |
+|------|------|
+| `<`, `>`, `&` in text | entities `&lt;` `&gt;` `&amp;` |
+| Newline | literal newline, or entity `&#10;` |
+| Multi-line text | write it inline; outer whitespace trimmed, inner whitespace preserved verbatim |
+| HTML fragment to output as-is | `<text><![CDATA[<strong>粗体</strong>]]></text>` |
+| Valueless attribute (`x-cloak`) | must write `x-cloak=""` — XML does not allow an attribute with no value |
+
+Other notes:
+
+- Attribute values are wrapped in double quotes; when the value itself contains a double quote, use `&quot;` or wrap the attribute value in single quotes (`href='/x'`).
+- `{{ path }}` interpolation needs **no escaping in XML** — `{` and `}` are not XML-special characters; this is a natural advantage over YAML.
+- `required` is read per HTML boolean-attribute semantics: `"true"`/`"1"`/`"yes"`/`"on"` (case-insensitive) are true, `"false"`/`"0"`/`"no"`/`"off"` are false, and both `required=""` and `required="required"` count as "present" (HTML's two present spellings). Any other spelling is a compile error — answering false would silently drop the attribute, which is exactly the silent drop this module forbids.
+- `level` and `rows` parse as decimal integers; a non-numeric value (e.g. `level="two"`) is a compile error, and range checks (e.g. `level` 1–6) still belong to the shared compiler.
+- Leaf nodes (`text`/`heading`/`link`) allow only `<attr>` children: nesting any other tag is a compile error, not a silent drop that leaves a concatenated string; use CDATA for HTML.
+- Unknown attributes, unknown child elements and misspelled container children (e.g. `<colum>`) are **always compile errors**, never silently dropped; a misspelled node type is reported as "unknown node type". See §4.3 and §9.
+- Containers accept **child elements only**. Text or CDATA written directly inside a container is unreachable from the node model and is therefore a compile error — wrap it in `<text>`; write `<text><![CDATA[...]]></text>` for raw HTML. Indentation whitespace does not count.
+
+### 4.3 Attribute passthrough
+
+Attributes on a node are handled in three categories:
+
+1. **DSL fields** — fields the node type itself consumes (e.g. `heading.level`, `link.href`, `form.action`).
+2. **Forwarded attributes** — emitted verbatim on the tag the node produces. Whitelist:
+   - `__event` — the readable spelling of `@event` (below)
+   - framework directive names containing a colon: `x-on:click`, `x-bind:href`, `v-on:click`, `wire:click`, `on:click`, `:href`, etc.
+   - prefixes: `x-`, `v-`, `hx-`, `data-`
+   - common HTML hooks: `class`, `id`, `style`, and `bind` (the front-end framework's binding attribute, whose value is a browser-side variable name)
+3. **Everything else is a compile error** — an unknown attribute is treated as a typo and never silently dropped (the old behavior silently swallowed directives, the most dangerous failure mode).
+
+Nodes that emit no tag (`text`, `if`, `each`, `component`) do not accept forwarded attributes; wrap them in `el`.
+
+Forwarded-attribute values are HTML-attribute-escaped first (`ENT_COMPAT`, keeping single quotes readable), then `{{ }}`-interpolated — the order must not be reversed, otherwise the quotes inside the `## ##` sugar syntax would be broken by escaping.
+
+**`__event` → `@event`**: XML does not allow `@` in attribute names (not a legal NameStartChar), so `@click` cannot be written directly. Attribute names starting with `__` are mapped positionally — `__` becomes `@`, the rest is copied verbatim:
+
+| Write | Compiles to |
+|----|--------|
+| `__click="open = ! open"` | `@click="open = ! open"` |
+| `__keydown.escape.window="close()"` | `@keydown.escape.window="close()"` |
+
+The mapping is **positional** (`@` is always first), so there is no splitting ambiguity. By contrast, hyphenated forms like `x-on-click` cannot be reliably restored — `x-on-keydown-enter` cannot tell whether to split into `x-on:keydown-enter` or `x-on-keydown:enter` — so this module does **not** guess; it errors directly instead (see below).
+
+`@` is shorthand for `x-on:`, so `__event` and `x-on:event` are fully equivalent; and `:` / `x-bind:` / `wire:` / `hx-` etc. can be written normally and need no compensation. Once the `__` prefix is used it is taken; for your project's own `__xxx` forwarded attributes, use `<attr>` (see §4.4).
+
+**Targeted error for hyphenated forms**: `x-on-*`, `x-bind-*` and `x-transition-*` do not exist in Alpine (Alpine always uses the colon). Because the `x-` prefix would otherwise let these spellings through, they would be silently forwarded and compile successfully while the directive stays dead — so they are intercepted and a suggestion is given:
+
+```
+body[0]: 未知属性 "x-on-click"；Alpine 的事件/绑定指令用冒号形式，请写 "x-on:click" 或 "__click"
+```
+
+XML is stricter than HTML about attribute names: `:` is a reserved namespace separator, but libxml only warns and still keeps the attribute, so the colon forms in the table above work; the only thing truly unwritable is a leading `@`.
+
+### 4.4 `<attr>` explicit attributes
+
+When you need a name that the `__` mapping cannot cover (or any legal HTML attribute name), use an `<attr>` child node — the attribute name is passed as a **value** and is not bound by XML name rules:
+
+```xml
+<el tag="button" class="btn">
+  <attr name="@click" value="open = ! open"/>
+  <attr name=":class" value="open &amp;&amp; 'on'"/>
+  <attr name="__raw" value="literal"/>
+  切换
+</el>
+```
+
+Compiles to:
+
+```php
+<button class="btn" @click="open = ! open" :class="open &amp;&amp; 'on'" __raw="literal">
+切换
+</button>
+```
+
+| Constraint | Meaning |
+|------|------|
+| Allowed placement | child of a node that emits a tag: `el` / `heading` / `link` / `form` / `table` / `field` / `column` |
+| `name` | required, any legal HTML attribute name (including `@`), **emitted verbatim, no `__` mapping** |
+| `value` | required, supports `{{ }}` interpolation |
+| Duplicate | conflicts with an existing attribute of the same name is a compile error |
+| Field collision | colliding with the node's own DSL field is a compile error (e.g. `<attr name="href">` on a `<link>`) |
+| Misuse | being a direct child of a container (`body`/`then`/`content` etc.) is a compile error |
+
+The `<attr>` name is not mapped, so it is both the canonical explicit way to write `@click` and the escape hatch when you need a literal `__xxx` attribute. When you can write the standard form directly, prefer a plain attribute (`x-on:click` or `__click`).
+
+## 5. Data Binding Syntax
+
+### 5.1 Path expressions
+
+A path is the sole carrier of data binding, with strict grammar:
+
+```
+path   := segment ( "." segment )*
+segment := [A-Za-z_][A-Za-z0-9_]*
+```
+
+The first segment is the variable name; later segments are array-key access. Examples:
+
+| Path | Compiles to |
+|------|--------|
+| `users` | `$users` |
+| `user.name` | `$user['name']` |
+| `form.errors.email` | `$form['errors']['email']` |
+
+The compiled access always carries a `?? ''` fallback (text/attribute context) or `?? null` fallback (conditional/loop context) to avoid warnings on undefined keys.
+
+### 5.2 Interpolation `{{ path }}`
+
+Text and attribute values support `{{ path }}` interpolation, compiled to **auto-escaped** output:
+
+```xml
+<text>你好，{{ user.name }}</text>
+```
+
+Compiles to:
+
+```php
+你好，## $user['name'] ?? '' ##
+```
+
+`## ##` is compiled by TemplateCompiler into `<?= $this->e($user['name'] ?? '') ?>`; XSS protection is handled by the template engine.
+
+Interpolation appears only in two contexts, compiled differently:
+
+| Context | Compilation | Example |
+|--------|----------|------|
+| HTML text / attribute (text, heading, link, etc.) | keeps the `## expr ##` sugar verbatim | `href="/users/## $user['id'] ?? '' ##"` |
+| PHP array literal (component `data`) | string concatenation `'...' . ($expr) . '...'`, **not pre-escaped** | `'title' => '编辑 ' . ($user['name'] ?? '')` |
+
+The PHP context must never output `## ##` sugar — it would be substituted a second time by TemplateCompiler into a PHP string literal and cause a syntax error.
+
+Interpolation works only in these two contexts. All other fields are **literal fields**: `layout`, section name, `form.method`, `field.name`, `field.label`, `<option>`'s value and display text, `empty`, `column.label`, `component.name`. These fields are emitted verbatim; writing `{{ }}` in them has no effect and is a compile error (no longer silently ignored).
+
+### 5.3 Invalid paths and interpolation markers
+
+Anything inside a `{{ ... }}` that does not match path grammar (function calls, arithmetic, string literals, nested interpolation) is a compile error, reported with the node path.
+
+Interpolation allows at most two braces: an occurrence of `{{{` or `}}}` is a compile error. Three braces trick the pairing count (inside `{{{ a }}}` there is one `{{` and one `}}`, which looks paired), the regex matches only the inner `{{ a }}`, and the leftover braces remain in the output verbatim — so the page would display mangled `{` `}`.
+
+### 5.4 Data shape constraint
+
+Paths compile to array access (`$user['name']`). Page data is contractually **array-shaped**, normalized by the controller at the boundary (Domain entities converted to arrays). This is a documented constraint; no object compatibility is done inside this module.
+
+## 6. Node Vocabulary
+
+Every element in body/sections is a node, and **the element name is the type**. There are 9 node types + 2 nested structures; the nested structures (`<field>`, `<column>`) are also typed by their element name, so a `type` attribute is unnecessary and, if written, must match the element name (so the two node models stay fully identical):
+
+| Node | Purpose |
+|------|------|
+| `<text>` | text, supports interpolation |
+| `<heading>` | heading |
+| `<link>` | link |
+| `<if>` | conditional display |
+| `<each>` | loop / list |
+| `<form>` + `<field>` | form and its fields |
+| `<table>` + `<column>` | table and its columns |
+| `<el>` | generic element container, carries attributes and a child node tree |
+| `<component>` | references a built-in or custom component |
+
+### 6.1 text
+
+```xml
+<text>你好，{{ user.name }}</text>
+```
+
+The element text is the `text` value, emitted verbatim (the literal part is controlled by the author and may contain HTML). Interpolation is auto-escaped. Multi-line text is allowed (outer whitespace trimmed). No children other than `<attr>` — a nested tag is a compile error and is never silently dropped; use CDATA for HTML.
+
+### 6.2 heading
+
+```xml
+<heading level="2">用户管理</heading>
+```
+
+The `level` attribute takes 1–6, default 1; out of range is a compile error. Compiles to `<hN>...</hN>`.
+
+### 6.3 link
+
+```xml
+<link href="/users/{{ user.id }}/edit">编辑</link>
+```
+
+The `href` attribute is required; the element text is `text`; both support interpolation (interpolation is auto-escaped, safe in attribute context). The `target` attribute is optional and supports interpolation; its value is not validated — HTML allows named targets beyond `_blank`, and an enum whitelist would wrongly reject legitimate uses.
+
+### 6.4 if
+
+```xml
+<if when="user.loggedIn">
+  <then><text>A</text></then>
+  <else><text>B</text></else>
+</if>
+```
+
+The `when` attribute is required; the path may take a `!` prefix for negation; `<then>` is required; `<else>` is optional. Compiles to:
+
+```php
+<?php if ($user['loggedIn'] ?? null): ?>
+  ...then...
+<?php else: ?>
+  ...else...
+<?php endif ?>
+```
+
+The negated form `when="!user.hidden"` (`!` needs no escaping in an XML attribute) compiles to `<?php if (!($user['hidden'] ?? null)): ?>`.
+
+### 6.5 each
+
+```xml
+<each items="users" as="user" index="i">
+  <body>
+    <text>{{ user.name }}</text>
+  </body>
+</each>
+```
+
+The `items` attribute is a required path, `as` defaults to `item`, `index` is optional. `!` negation belongs only to `if.when`; writing `!` on `items` is reported as an invalid path. Compiles to:
+
+```php
+<?php foreach ($users as $i => $user): ?>
+  ...body...
+<?php endforeach ?>
+```
+
+Nested each is allowed; an inner `as` with the same name naturally shadows per PHP semantics.
+
+### 6.6 form + field
+
+```xml
+<form action="/users/save" method="post">
+  <fields>
+    <field name="name" label="姓名" input="text" value="user.name" required="true" placeholder="请输入姓名"/>
+    <field name="role" label="角色" input="select">
+      <options>
+        <option value="admin">管理员</option>
+        <option value="user">普通用户</option>
+      </options>
+    </field>
+    <field name="bio" label="简介" input="textarea" rows="4" value="user.bio"/>
+    <field name="active" label="启用" input="checkbox" checked="user.active"/>
+    <field name="submit" label="保存" input="submit"/>
+  </fields>
+</form>
+```
+
+**form**: the `action` attribute is required, `method` defaults to `post`, and `<fields>` is required.
+
+**field** fields:
+
+| Field | Type | Required | Meaning |
+|------|------|------|------|
+| `name` | string | yes | field name (`name` / `id` attribute) |
+| `label` | string | yes | label text; the button text for `submit` type |
+| `input` | enum | no | see below, defaults to `text` |
+| `value` | path | no | bound value, compiles to `value="## $path ?? '' ##"`; not supported for `submit` (button text uses `label`) |
+| `required` | bool | no | default false; adds `required` on the input that supports it; `true` on `hidden` / `submit` is a compile error |
+| `placeholder` | string | no | text/password/email/number only; elsewhere a compile error |
+| `options` | child | select only | `<options>` containing `<option value="...">` |
+| `checked` | path | checkbox only | emits the `checked` attribute when truthy; elsewhere a compile error |
+| `rows` | int | textarea only | default 4; elsewhere a compile error |
+
+`input` enum: `text`, `password`, `email`, `number`, `textarea`, `select`, `checkbox`, `hidden`, `submit`. An invalid enum is a compile error. A `select` without `options`, `options` used on an input that does not support it, `value` used on a `select`, and an `<option>` without a `value` attribute are all compile errors.
+
+A field's **usage scope** is likewise a hard constraint, and going out of range is a compile error (these fields used to be silently dropped): `placeholder` is text/password/email/number only, `checked` is checkbox only, `rows` is textarea only, `value` does not support submit, `required` is text/password/email/number/textarea/select/checkbox only. When `required` is true, the `required` attribute is emitted on select / textarea / checkbox as well.
+
+A `<field>` is a nested structure: its type is determined by the element name, so a `type` attribute is unnecessary; if written, the value must be `field`, otherwise a compile error. `name`, `label`, and `<option>`'s value and text are literal fields and do not support `{{ }}` interpolation.
+
+Example compiled output (excerpt):
+
+```php
+<form action="/users/save" method="post">
+  <label for="name">姓名</label>
+  <input type="text" name="name" id="name" value="## $user['name'] ?? '' ##" required>
+  <label for="role">角色</label>
+  <select name="role" id="role">
+    <option value="admin">管理员</option>
+    <option value="user">普通用户</option>
+  </select>
+  <input type="submit" value="保存">
+</form>
+```
+
+### 6.7 table + column
+
+```xml
+<table items="users" as="user" empty="暂无数据">
+  <columns>
+    <column label="ID" pop="{{ user.id }}"/>
+    <column label="姓名" pop="{{ user.name }}"/>
+    <column label="操作">
+      <content>
+        <link href="/users/{{ user.id }}/edit">编辑</link>
+      </content>
+    </column>
+  </columns>
+</table>
+```
+
+The `items` attribute is required, `as` defaults to `row`, `empty` is optional (empty-list message), and `<columns>` is required. **column**: the `label` attribute is required; exactly one of `pop` (a data reference rendered into the cell, written as `{{ row.id }}`) or `<content>` (node tree, in the row variable scope) is required, and providing both is a compile error. `pop` must be wrapped in `{{ }}` and its first segment must equal the table's `as` variable.
+
+A `<column>` likewise does not need a `type` attribute; if written, the value must be `column`, otherwise a compile error. `label` and `empty` are literal text and do not support `{{ }}` interpolation.
+
+Compiles to:
+
+```php
+<table>
+<thead><tr><th>ID</th><th>姓名</th><th>操作</th></tr></thead>
+<tbody>
+<?php if (($users ?? []) === []): ?>
+  <tr><td colspan="3">暂无数据</td></tr>
+<?php else: ?>
+<?php foreach ($users as $user): ?>
+<tr>
+<td>## $user['id'] ?? '' ##</td>
+<td>## $user['name'] ?? '' ##</td>
+<td><a href="/users/## $user['id'] ?? '' ##/edit">编辑</a></td>
+</tr>
+<?php endforeach ?>
+<?php endif ?>
+</tbody>
+</table>
+```
+
+A `<content>` column's nodes run in the row-variable scope and can reference `user.*` directly.
+
+### 6.8 component
+
+```xml
+<component name="card">
+  <data>
+    <title>{{ user.name }}</title>
+    <body>简介</body>
+  </data>
+</component>
+```
+
+The `name` attribute is required; `<data>` is optional. Child element names are the data keys; element text is the value (supports interpolation, compiled as PHP-context concatenation). Compiles to:
+
+```php
+<?= $this->component('card', [
+    'title' => ($user['name'] ?? ''),
+    'body' => '简介',
+]) ?>
+```
+
+**Escaping contract**: interpolated values are passed to the component **unescaped**; the escaping responsibility lies with the component template, which chooses `$this->e()` (text) or `$this->raw()` (trusted HTML) per field semantics. Pre-escaping at compile time would stack with the component template's escaping into double escaping (`&amp;lt;`). Among the built-ins, `card.title`/`button.text`/`alert.text`/`badge.text` go through `e()`, while `card.body` uses `raw()`.
+
+### 6.9 el
+
+```xml
+<el tag="div" x-data="{ open: false }" class="panel">
+  <heading level="3">{{ user.name }}</heading>
+  <text>正文</text>
+</el>
+```
+
+The `tag` attribute is required (lowercase HTML tag name); children form the node tree; any forwarded attribute and `<attr>` are accepted. This is the only way to give a home to attributes like `x-data` — `text`/`if`/`each` emit no tag themselves. An empty child body is legal and compiles to `<div></div>`.
+
+### 6.10 attr
+
+See §4.4. Appears only as a child of a node that emits a tag, for writing attributes whose names XML cannot spell (mainly leading `@`).
+
+## 7. Component Mechanism
+
+Built-in and custom components share the same mechanism: both are migears/template component template files, invoked at runtime by `$this->component('name', $data)`.
+
+**Built-in components** (shipped with the package, template files in `components/`):
+
+- `card` — card: `title`, `body`
+- `button` — button: `text`, `href` (optional; renders `<button>` without href), `type` (default `default`, optional `primary`)
+- `alert` — alert bar: `type` (`info`/`success`/`warning`/`danger`, default `info`), `text`
+- `badge` — badge: `text`, `type` (a field with the same name as alert's, default `default`; its value is spliced verbatim into the class, no enum validation)
+
+The built-in component files are ordinary miGears/template components (`$this->e()` output) that users can read and copy-adapt directly.
+
+**Custom components**: users write PHP template files themselves per migears/template's component spec — `.php` is the native form, `.tpl.php` is the `## ##` sugar syntax (`## $expr ##` escaped, `### $expr ###` verbatim, and it goes through TemplateCompiler to drop a compilation cache; `.tpl.php` wins over a same-named `.php`) — e.g. `components/my-card.php`, referenced in XML as `<component name="my-card"/>`. There is no registration; `name` is the template name. This package ships one runnable custom component example, `examples/components/my-card.php`, referenced by name from `examples/full-featured.page.xml`.
+
+Runtime assembly: the page template must be able to find the component files. The README explains adding the package's `components/` directory to the template search path via `$tpl->addPath()`, or copying it into your project's template directory. The resolution rules are decided by migears/template's `findTemplate()`: it first tries `<path>/<name>.tpl.php`, then `<path>/<name>.php` (the `.tpl.php` pass must run through all paths before `.php`, so sugar-syntax files win), paths are searched in reverse order of `addPath()`, with later-added directories hit first — so a same-named file can override a built-in component (theme override); `name` can be a subdirectory path (`admin/table` resolves `<path>/admin/table.php`); a missing file is not an error at compile time and only throws `Component not found` at render time.
+
+## 8. CLI
+
+Entry point `bin/xml-pages` (a PHP shebang script):
+
+```
+php bin/xml-pages compile <input> [output-dir] [--check]
+php bin/xml-pages --help
+```
+
+| Argument | Meaning |
+|------|------|
+| `compile` | sub-command. `<input>` is a `.page.xml` file or a directory; a directory is processed recursively for all `.page.xml` files |
+| `[output-dir]` | optional. Defaults to the same directory as the source (in-place generation); when specified, outputs there keeping the same name |
+| `--check` | validate only, write nothing |
+| `--help` | usage info (standard help, no extra sub-command) |
+
+Behavior conventions:
+
+- Output file name: `users.page.xml` → `users.tpl.php`
+- Existing artifacts are overwritten unconditionally (derived-file semantics)
+- When processing a directory, reports per file `编译: <source> → <target>`; a failure does not interrupt the other files
+- Exit code: 0 if all succeed; 1 if any fails
+
+## 9. Error Handling
+
+All errors throw `CompileException` (extends `\RuntimeException`); after the CLI catches it, it is printed to stderr, in the format:
+
+```
+views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
+```
+
+Error categories and their messages:
+
+| Category | Detection | Example |
+|------|------|------|
+| XML syntax error | `simplexml_load_string` fails + libxml error message; includes a fix hint when the source contains `@attr` | XML 语法错误: error parsing attribute name；…请改用 __click |
+| Root element error | root element is not `<page>` | XML 根元素必须是 <page> |
+| Structure error | top-level rule violated, section missing name, option missing value | 同时指定 layout 与 body |
+| Unknown node | element name not in the vocabulary | 未知节点类型 |
+| Missing/invalid field | required attribute missing, enum out of range, type mismatch | if 缺 when；level 为 7 |
+| Boolean attribute spelling | `required` value not in the true/false vocabulary nor the two "present" spellings | required 的值 "maybe" 不是布尔；真值可用 true / 1 / yes / on / required / 空值，假值可用 false / 0 / no / off |
+| Integer attribute spelling | `level` / `rows` value is not a decimal integer | level 的值 "two" 不是整数；请写十进制数字（如 2） |
+| Path error | interpolation/path grammar mismatch | 非法路径 "user..name" |
+| Context error | e.g. pop/content mutually exclusive | column 同时含 pop 与 content；pop 未引用行变量 |
+| Literal error | `{{ }}` written in a literal field | "empty" 是字面量字段，不支持 {{ }} 插值 |
+| Template-layer marker | `##` appears inside a literal field (`label` / `name` / `tag` / `empty` / option etc.) — these fields are written into the output verbatim with no place to escape | body[0].fields[0]: "label" 是字面量，不允许出现 "##"（模板层语法） |
+| Nested-structure type error | field/column type does not match the element name | type 必须是 "field" |
+| Unknown attribute | attribute is neither the node's DSL field nor in the passthrough whitelist | 未知属性 "levl" |
+| Hyphenated directive name | `x-on-*` / `x-bind-*` / `x-transition-*` (Alpine has only the colon form) | 请写 "x-on:click" 或 "__click" |
+| Attribute has no mount point | forwarded attribute or `<attr>` on a node that emits no tag | 节点 <text> 不输出标签，请改用 <el tag="..."> 包裹内容 |
+| Unknown/out-of-range child | a container has an unlisted child element (`fields` / `columns` / `options` / `sections` / `then` / `else` / `body` / `data`), or a leaf node has a nested tag | 不允许的子元素 <sectoin>（可用: section） |
+| Brace disorder | interpolation contains `{{{` or `}}}` | 插值符号不能连续三个花括号 |
+| Bare text in a container | text or CDATA written directly inside a container (`body`/`then`/`else`/`content`/`section`/`el`/`sections`/`fields`/`columns`/`options`/`data`) | 不能直接写文本或 CDATA（会被丢弃），请用 <text> 包裹 |
+| `<attr>` with child content | `<attr>` has children or text | `<attr>` 只接受 name / value 属性，不能带子内容 |
+| `<attr>` misuse | missing name/value, duplicate with a same-named attribute, placed under a container | `<attr>` 只能作为会输出标签的节点的子元素 |
+
+The compiler maintains a path from the root to each node (e.g. `sections.content[2]`), and every error carries the path. Indices in a path are always positional (`body[0]`, `fields[0]`, `columns[0]`, `sections[0]`, `options[0]`), not element names — SimpleXML gives element names as keys when iterating repeated children, and the frontend normalizes uniformly to positional indices via `childList()`. When an XML syntax error cannot be located to a node, the parser message plus the file path is output.
+
+The shared layer's list and type guards (`requireList()`'s list-shape check, `required` boolean, `option` text, `layout` / `title` string, etc.) are unreachable from the XML side: at frontend parse time attributes are always strings and normalized as needed (`level` / `rows` to integers, `required` to boolean), and container children are necessarily built into lists. These guards are the defense the three frontends share by using the same compilation contract; for the array DSL and the YAML frontend they are reachable paths.
+
+Fail-fast: the first error throws, and the CLI continues processing the remaining files in the directory.
+
+## 10. Module Structure
+
+```
+migears-xml-pages/
+├── composer.json            name: migears/xml-pages; require: php ^8.1, ext-dom, ext-simplexml, migears/pages ^2.0
+├── README.md                bilingual (Chinese/English), architecture, install, quick start, XML reference, error handling, testing notes
+├── LICENSE
+├── bin/
+│   └── xml-pages            CLI entry point
+├── src/
+│   ├── Compiler.php         XML parsing layer (XML → array IR, ~500 lines), extends migears/pages' shared compiler
+│   └── Exception/
+│       └── CompileException.php
+├── components/              built-in component templates
+│   ├── card.php
+│   ├── button.php
+│   ├── alert.php
+│   └── badge.php
+├── examples/                full-featured examples (compilable and renderable)
+│   ├── full-featured.page.xml   covers the entire declaration syntax
+│   ├── views/layout/main.php    companion minimal layout
+│   └── components/my-card.php   custom component example, referenced by name from full-featured.page.xml
+└── tests/
+    ├── CompilerTest.php
+    ├── CliTest.php
+    ├── IntegrationTest.php
+    ├── BundledComponentsTest.php   cross-package copy consistency (checked on same-repo checkout, skipped on standalone install)
+    └── fixtures/
+        ├── pages/           .page.xml input samples
+        └── views/           layouts for integration tests
+```
+
+Composer dependency notes: at runtime the actually run code is the generated template and the built-in components, both depending on migears/template; at compile time the shared compiler of migears/pages is used, so it is set as `require` (the pages package itself declares migears/template). The parsing layer uses PHP's built-in SimpleXML (libxml), no composer third-party packages.
+
+Copy notes: `components/*.php` and `bin/xml-pages` are byte-identical to the sibling frontend `migears/yaml-pages` (the four built-in components are byte-level identical). This is a deliberately accepted cost — components must ship with the package to be found by `addPath`, and each CLI depends on its own parsing extension — but changing one place (e.g. badge's default `type`) requires syncing the other, and both sides' component lists and tests must be checked together. `tests/BundledComponentsTest.php` turns this constraint into an executable check: on same-repo checkout it compares the component list and content byte-for-byte, and skips when installed standalone (sibling package absent).
+
+## 11. Test Plan (TDD)
+
+Unit tests are driven by XML strings/fixtures: input a `.page.xml`, assert the compiled artifact is exactly identical to the expected `.tpl.php` (or contains the specified fragments).
+
+Regression tests of the shared compilation layer (node grammar, interpolation, passthrough, the base behavior of validation) are carried by migears/pages' CompilerTest; this package's tests focus on XML parsing and the overall behavior after inheritance.
+
+| Group | Cases |
+|------|------|
+| text | text plain / single interpolation / multiple interpolations / multi-line (`&#10;`) |
+| structure | heading at all levels, out-of-range level errors; link href/text interpolation |
+| conditionals | if then / if then+else / `!` negation / missing when errors |
+| loops | each basic / index / nested / missing items errors |
+| forms | each input enum / select options / checkbox checked / submit / invalid enum / select without options / options on an unsupported input / option missing value errors |
+| boolean attributes | required truthy and falsy vocabularies (case-insensitive), `required=""` and `required="required"` count as true, unknown spelling errors out and lists the usable values |
+| integer attributes | level / rows decimal forms work, non-numeric reports a syntax error, out-of-range still reports a range error from the shared layer |
+| path indices | error paths for fields / columns / sections / options use positional indices (`fields[0]`, not `fields[field]`) |
+| tables | pop column (`{{ row.x }}`) / content column / empty / as default and custom / pop+content together errors / missing columns errors |
+| layout | layout+sections / standalone body / both together errors / both missing errors / title section / section missing name errors |
+| components | no data / data interpolation (PHP-context concatenation) / data literal |
+| binding | path grammar boundaries (invalid characters, empty segments, `!` only allowed on when) |
+| negation boundary | `each.items` with `!` errors (`!` belongs only to `if.when`) |
+| nested structures | `<field type="field">` passes, `<field type="column">` errors |
+| literals | `{{ }}` in literal fields like `label`, `empty`, `<option>` errors |
+| template-layer marker | `##` in text is escaped per template-layer syntax (artifact contains `\##`); a single `#` needs no escaping (shared layer, reachable from the frontend too) |
+| parsing | XML syntax errors error out, root not `<page>` errors out |
+| passthrough | Alpine / Vue / htmx / Livewire / Stimulus directives plus `class`/`id`/`style` forwarded; value escaping; interpolation inside values; single quotes stay readable |
+| `__event` | `__click` → `@click`; with modifiers (`__keydown.escape.window`); errors on a tag-less node; duplicate with `<attr name="@click">` errors |
+| hyphen interception | `x-on-click` / `x-bind-href` / `x-transition-enter` error out and give the colon-form suggestion; colon-less directives (`x-show`/`x-data`) unaffected |
+| passthrough misuse | unknown attributes error; a tag-less node (`text`/`if`/`each`/`component`) carrying attributes errors; unknown page-root attribute errors |
+| el | with children / empty children / missing tag errors / invalid tag errors |
+| attr | `@click` and similar shorthands reachable; missing name/value errors; same-name duplicate errors; placed under a container errors |
+| child-element validation | unknown page-root child errors; leaf node with nested tag errors; misspelled container child errors (`<colum>` in `columns`, `<sectoin>` in `sections`, extra subtree in `if`, extra subtree in `each`, extra subtree in `component`) |
+| interpolation markers | `{{{ a }}}` / `{{ a }}}` / `{{{ a }}` error; adjacent `{{ a }}{{ b }}` still passes |
+| bare text in a container | bare text and CDATA in `el` / `then` / `else` / `body` / `content` / `section` / `sections` / `fields` / `columns` / `data` all error; indentation whitespace and leaf-node text unaffected |
+| parsing hints | failed parse from `@click` attaches a `__click` hint; email addresses in text do not trigger the hint |
+| escaping contract | component data interpolation is escaped exactly once (render cascade test, asserts no `&amp;lt;`) |
+| CLI | single-file compile / directory recursion / output-dir / --check / --help / failure exit code |
+| integration | the compiled artifact renders successfully after TemplateCompiler's second compilation (tested against migears/template) |
+| copy consistency | built-in components byte-identical to `migears/yaml-pages` (checked on same-repo checkout, skipped on standalone install) |
+
+## 12. Explicitly Out of Scope (Future Candidates)
+
+- Event handling, state management, routing — never entered
+- Custom components defined inside XML (components exist only as PHP template files)
+- Expression-language extensions (arithmetic, functions, ternaries)
+- Runtime XML parsing / hot reload
+- XML Schema / DTD validation documents
+- HTML form controls beyond `input` (file upload, date pickers, etc.)
+
+---
 # migears/xml-pages 模块规格说明
 
 版本：2.0.0（草案，待评审）

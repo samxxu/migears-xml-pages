@@ -19,38 +19,38 @@ final class CompilerTest extends TestCase
 
     public function testTextPlain(): void
     {
-        $out = $this->compile('<page><body><text>你好</text></body></page>');
-        $this->assertSame('你好', $out);
+        $out = $this->compile('<page><body><text>Hello</text></body></page>');
+        $this->assertSame('Hello', $out);
     }
 
     public function testTextMultiLine(): void
     {
-        $out = $this->compile('<page><body><text>第一行&#10;第二行</text></body></page>');
-        $this->assertSame("第一行\n第二行", $out);
+        $out = $this->compile('<page><body><text>first line&#10;second line</text></body></page>');
+        $this->assertSame("first line\nsecond line", $out);
     }
 
     public function testTextSingleInterpolation(): void
     {
-        $out = $this->compile('<page><body><text>你好，{{ user.name }}</text></body></page>');
-        $this->assertSame('你好，## $user[\'name\'] ?? \'\' ##', $out);
+        $out = $this->compile('<page><body><text>Hello, {{ user.name }}</text></body></page>');
+        $this->assertSame('Hello, ## $user[\'name\'] ?? \'\' ##', $out);
     }
 
     public function testTextMultipleInterpolations(): void
     {
-        $out = $this->compile('<page><body><text>{{ user.name }}（{{ user.age }}）</text></body></page>');
-        $this->assertSame('## $user[\'name\'] ?? \'\' ##（## $user[\'age\'] ?? \'\' ##）', $out);
+        $out = $this->compile('<page><body><text>{{ user.name }} ({{ user.age }})</text></body></page>');
+        $this->assertSame('## $user[\'name\'] ?? \'\' ## (## $user[\'age\'] ?? \'\' ##)', $out);
     }
 
     public function testHeadingDefaultLevel(): void
     {
-        $out = $this->compile('<page><body><heading>用户管理</heading></body></page>');
-        $this->assertSame('<h1>用户管理</h1>', $out);
+        $out = $this->compile('<page><body><heading>User management</heading></body></page>');
+        $this->assertSame('<h1>User management</h1>', $out);
     }
 
     public function testHeadingLevel(): void
     {
-        $out = $this->compile('<page><body><heading level="2">用户管理</heading></body></page>');
-        $this->assertSame('<h2>用户管理</h2>', $out);
+        $out = $this->compile('<page><body><heading level="2">User management</heading></body></page>');
+        $this->assertSame('<h2>User management</h2>', $out);
     }
 
     public function testHeadingLevelOutOfRange(): void
@@ -61,27 +61,27 @@ final class CompilerTest extends TestCase
     public function testLevelAndRowsMustBeWrittenAsIntegers(): void
     {
         // Casting first turned "two" into 0, which then reported a range error
-        // ("level 必须是 1-6 的整数，收到 0") about a value nobody wrote.
-        $this->expectError('<page><body><heading level="two">标题</heading></body></page>', 'level 的值 "two" 不是整数');
+        // ("level must be an integer from 1 to 6, got 0") about a value nobody wrote.
+        $this->expectError('<page><body><heading level="two">Title</heading></body></page>', 'the value "two" for level is not an integer');
         $this->expectError(
             '<page><body><form action="/s"><fields><field name="b" label="B" input="textarea" rows="x"/></fields></form></body></page>',
-            'rows 的值 "x" 不是整数'
+            'the value "x" for rows is not an integer'
         );
         // the out-of-range case stays a range error: syntax here, range in the shared compiler
-        $this->expectError('<page><body><heading level="-1">标题</heading></body></page>', 'level 必须是 1-6 的整数');
+        $this->expectError('<page><body><heading level="-1">Title</heading></body></page>', 'must be an integer from 1 to 6');
     }
 
     public function testLevelAndRowsReadDecimalStrings(): void
     {
-        $this->assertSame('<h3>标题</h3>', $this->compile('<page><body><heading level="3">标题</heading></body></page>'));
+        $this->assertSame('<h3>Title</h3>', $this->compile('<page><body><heading level="3">Title</heading></body></page>'));
         $out = $this->compile('<page><body><form action="/s"><fields><field name="b" label="B" input="textarea" rows="6"/></fields></form></body></page>');
         $this->assertStringContainsString('rows="6"', $out);
     }
 
     public function testLinkWithInterpolation(): void
     {
-        $out = $this->compile('<page><body><link href="/users/{{ user.id }}/edit">编辑</link></body></page>');
-        $this->assertSame('<a href="/users/## $user[\'id\'] ?? \'\' ##/edit">编辑</a>', $out);
+        $out = $this->compile('<page><body><link href="/users/{{ user.id }}/edit">Edit</link></body></page>');
+        $this->assertSame('<a href="/users/## $user[\'id\'] ?? \'\' ##/edit">Edit</a>', $out);
     }
 
     public function testLinkTarget(): void
@@ -97,9 +97,9 @@ final class CompilerTest extends TestCase
 
     public function testIfThen(): void
     {
-        $out = $this->compile('<page><body><if when="user.loggedIn"><then><text>欢迎</text></then></if></body></page>');
+        $out = $this->compile('<page><body><if when="user.loggedIn"><then><text>Welcome</text></then></if></body></page>');
         $this->assertSame(
-            "<?php if (\$user['loggedIn'] ?? null): ?>\n欢迎\n<?php endif ?>",
+            "<?php if (\$user['loggedIn'] ?? null): ?>\nWelcome\n<?php endif ?>",
             $out
         );
     }
@@ -161,9 +161,9 @@ final class CompilerTest extends TestCase
 
     public function testFormBasic(): void
     {
-        $out = $this->compile('<page><body><form action="/users/save"><fields><field name="name" label="姓名"/></fields></form></body></page>');
+        $out = $this->compile('<page><body><form action="/users/save"><fields><field name="name" label="Name"/></fields></form></body></page>');
         $this->assertSame(
-            "<form action=\"/users/save\" method=\"post\">\n  <label for=\"name\">姓名</label>\n  <input type=\"text\" name=\"name\" id=\"name\">\n</form>",
+            "<form action=\"/users/save\" method=\"post\">\n  <label for=\"name\">Name</label>\n  <input type=\"text\" name=\"name\" id=\"name\">\n</form>",
             $out
         );
     }
@@ -171,26 +171,26 @@ final class CompilerTest extends TestCase
     public function testFormFieldTypes(): void
     {
         $out = $this->compile('<page><body><form action="/s"><fields>'
-            . '<field name="a" label="密码" input="password"/>'
-            . '<field name="b" label="邮箱" input="email"/>'
-            . '<field name="c" label="数量" input="number"/>'
-            . '<field name="d" label="隐藏" input="hidden" value="user.token"/>'
-            . '<field name="e" label="保存" input="submit"/>'
+            . '<field name="a" label="Password" input="password"/>'
+            . '<field name="b" label="Email" input="email"/>'
+            . '<field name="c" label="Quantity" input="number"/>'
+            . '<field name="d" label="Hidden" input="hidden" value="user.token"/>'
+            . '<field name="e" label="Save" input="submit"/>'
             . '</fields></form></body></page>');
         $this->assertStringContainsString('<input type="password" name="a" id="a">', $out);
         $this->assertStringContainsString('<input type="email" name="b" id="b">', $out);
         $this->assertStringContainsString('<input type="number" name="c" id="c">', $out);
         $this->assertStringContainsString('<input type="hidden" name="d" value="## $user[\'token\'] ?? \'\' ##">', $out);
-        $this->assertStringContainsString('<input type="submit" value="保存">', $out);
+        $this->assertStringContainsString('<input type="submit" value="Save">', $out);
     }
 
     public function testFormFieldValueBinding(): void
     {
         $out = $this->compile('<page><body><form action="/s"><fields>'
-            . '<field name="name" label="姓名" value="user.name" required="true" placeholder="请输入"/>'
+            . '<field name="name" label="Name" value="user.name" required="true" placeholder="Enter"/>'
             . '</fields></form></body></page>');
         $this->assertStringContainsString(
-            '<input type="text" name="name" id="name" value="## $user[\'name\'] ?? \'\' ##" placeholder="请输入" required>',
+            '<input type="text" name="name" id="name" value="## $user[\'name\'] ?? \'\' ##" placeholder="Enter" required>',
             $out
         );
     }
@@ -220,14 +220,14 @@ final class CompilerTest extends TestCase
     {
         $this->expectError(
             '<page><body><form action="/s"><fields><field name="a" label="A" required="maybe"/></fields></form></body></page>',
-            'required 的值 "maybe" 不是布尔'
+            'the value "maybe" for required is not a boolean'
         );
     }
 
     public function testFormTextarea(): void
     {
         $out = $this->compile('<page><body><form action="/s"><fields>'
-            . '<field name="bio" label="简介" input="textarea" rows="4" value="user.bio"/>'
+            . '<field name="bio" label="About" input="textarea" rows="4" value="user.bio"/>'
             . '</fields></form></body></page>');
         $this->assertStringContainsString(
             '<textarea name="bio" id="bio" rows="4">## $user[\'bio\'] ?? \'\' ##</textarea>',
@@ -238,23 +238,23 @@ final class CompilerTest extends TestCase
     public function testFormSelect(): void
     {
         $out = $this->compile('<page><body><form action="/s"><fields>'
-            . '<field name="role" label="角色" input="select"><options>'
-            . '<option value="admin">管理员</option>'
-            . '<option value="user">普通用户</option>'
+            . '<field name="role" label="Role" input="select"><options>'
+            . '<option value="admin">Admin</option>'
+            . '<option value="user">Standard user</option>'
             . '</options></field>'
             . '</fields></form></body></page>');
         $this->assertStringContainsString(
             '<select name="role" id="role">',
             $out
         );
-        $this->assertStringContainsString('<option value="admin">管理员</option>', $out);
-        $this->assertStringContainsString('<option value="user">普通用户</option>', $out);
+        $this->assertStringContainsString('<option value="admin">Admin</option>', $out);
+        $this->assertStringContainsString('<option value="user">Standard user</option>', $out);
     }
 
     public function testFormCheckboxChecked(): void
     {
         $out = $this->compile('<page><body><form action="/s"><fields>'
-            . '<field name="active" label="启用" input="checkbox" checked="user.active"/>'
+            . '<field name="active" label="Enabled" input="checkbox" checked="user.active"/>'
             . '</fields></form></body></page>');
         $this->assertStringContainsString(
             '<input type="checkbox" name="active" id="active"<?= ($user[\'active\'] ?? null) ? \' checked\' : \'\' ?>>',
@@ -306,10 +306,10 @@ final class CompilerTest extends TestCase
     {
         $out = $this->compile('<page><body><table items="users"><columns>'
             . '<column label="ID" pop="{{ row.id }}"/>'
-            . '<column label="姓名" pop="{{ row.name }}"/>'
+            . '<column label="Name" pop="{{ row.name }}"/>'
             . '</columns></table></body></page>');
         $this->assertSame(
-            "<table>\n<thead><tr><th>ID</th><th>姓名</th></tr></thead>\n<tbody>\n<?php foreach (\$users ?? [] as \$row): ?>\n<tr>\n<td>## \$row['id'] ?? '' ##</td>\n<td>## \$row['name'] ?? '' ##</td>\n</tr>\n<?php endforeach ?>\n</tbody>\n</table>",
+            "<table>\n<thead><tr><th>ID</th><th>Name</th></tr></thead>\n<tbody>\n<?php foreach (\$users ?? [] as \$row): ?>\n<tr>\n<td>## \$row['id'] ?? '' ##</td>\n<td>## \$row['name'] ?? '' ##</td>\n</tr>\n<?php endforeach ?>\n</tbody>\n</table>",
             $out
         );
     }
@@ -324,19 +324,19 @@ final class CompilerTest extends TestCase
     public function testTableContentColumn(): void
     {
         $out = $this->compile('<page><body><table items="users"><columns>'
-            . '<column label="操作"><content><link href="/users/{{ user.id }}/edit">编辑</link></content></column>'
+            . '<column label="Actions"><content><link href="/users/{{ user.id }}/edit">Edit</link></content></column>'
             . '</columns></table></body></page>');
         $this->assertStringContainsString(
-            '<td><a href="/users/## $user[\'id\'] ?? \'\' ##/edit">编辑</a></td>',
+            '<td><a href="/users/## $user[\'id\'] ?? \'\' ##/edit">Edit</a></td>',
             $out
         );
     }
 
     public function testTableEmptyText(): void
     {
-        $out = $this->compile('<page><body><table items="users" empty="暂无数据"><columns><column label="ID" pop="{{ row.id }}"/></columns></table></body></page>');
+        $out = $this->compile('<page><body><table items="users" empty="No data"><columns><column label="ID" pop="{{ row.id }}"/></columns></table></body></page>');
         $this->assertStringContainsString(
-            "<?php if ((\$users ?? []) === []): ?>\n<tr><td colspan=\"1\">暂无数据</td></tr>\n<?php else: ?>",
+            "<?php if ((\$users ?? []) === []): ?>\n<tr><td colspan=\"1\">No data</td></tr>\n<?php else: ?>",
             $out
         );
         $this->assertStringContainsString('<?php endif ?>', $out);
@@ -363,18 +363,18 @@ final class CompilerTest extends TestCase
 
     public function testLayoutWithSections(): void
     {
-        $out = $this->compile('<page layout="layout/admin"><sections><section name="content"><text>主体</text></section></sections></page>');
+        $out = $this->compile('<page layout="layout/admin"><sections><section name="content"><text>Content</text></section></sections></page>');
         $this->assertSame(
-            "<?php \$this->extends('layout/admin') ?>\n\n<?php \$this->start('content') ?>\n主体\n<?php \$this->end() ?>\n",
+            "<?php \$this->extends('layout/admin') ?>\n\n<?php \$this->start('content') ?>\nContent\n<?php \$this->end() ?>\n",
             $out
         );
     }
 
     public function testLayoutWithTitleSection(): void
     {
-        $out = $this->compile('<page title="用户管理" layout="layout/admin"><sections><section name="content"><text>主体</text></section></sections></page>');
+        $out = $this->compile('<page title="User management" layout="layout/admin"><sections><section name="content"><text>Content</text></section></sections></page>');
         $this->assertStringContainsString(
-            "<?php \$this->start('title') ?>\n用户管理\n<?php \$this->end() ?>",
+            "<?php \$this->start('title') ?>\nUser management\n<?php \$this->end() ?>",
             $out
         );
     }
@@ -403,25 +403,25 @@ final class CompilerTest extends TestCase
         $compiler = new Compiler(function (string $message) use (&$warnings): void {
             $warnings[] = $message;
         });
-        $compiler->compileSource('<page title="忽略"><body><text>A</text></body></page>');
+        $compiler->compileSource('<page title="ignored"><body><text>A</text></body></page>');
         $this->assertCount(1, $warnings);
         $this->assertStringContainsString('title', $warnings[0]);
     }
 
     public function testComponentLiteralData(): void
     {
-        $out = $this->compile('<page><body><component name="card"><data><title>标题</title><body>简介</body></data></component></body></page>');
+        $out = $this->compile('<page><body><component name="card"><data><title>Title</title><body>About</body></data></component></body></page>');
         $this->assertSame(
-            "<?= \$this->component('card', [\n    'title' => '标题',\n    'body' => '简介',\n]) ?>",
+            "<?= \$this->component('card', [\n    'title' => 'Title',\n    'body' => 'About',\n]) ?>",
             $out
         );
     }
 
     public function testComponentInterpolatedData(): void
     {
-        $out = $this->compile('<page><body><component name="card"><data><title>{{ user.name }}</title><body>编辑 {{ user.name }} 的信息</body></data></component></body></page>');
+        $out = $this->compile('<page><body><component name="card"><data><title>{{ user.name }}</title><body>Edit {{ user.name }} info</body></data></component></body></page>');
         $this->assertSame(
-            "<?= \$this->component('card', [\n    'title' => (\$user['name'] ?? ''),\n    'body' => '编辑 ' . (\$user['name'] ?? '') . ' 的信息',\n]) ?>",
+            "<?= \$this->component('card', [\n    'title' => (\$user['name'] ?? ''),\n    'body' => 'Edit ' . (\$user['name'] ?? '') . ' info',\n]) ?>",
             $out
         );
     }
@@ -439,7 +439,7 @@ final class CompilerTest extends TestCase
 
     public function testNonPageRoot(): void
     {
-        $this->expectError('<html/>', '根元素');
+        $this->expectError('<html/>', 'root element');
     }
 
     public function testSectionMissingName(): void
@@ -452,17 +452,17 @@ final class CompilerTest extends TestCase
 
     public function testInvalidInterpolation(): void
     {
-        $this->expectError('<page><body><text>{{ user.name + 1 }}</text></body></page>', '非法路径');
+        $this->expectError('<page><body><text>{{ user.name + 1 }}</text></body></page>', 'invalid path');
     }
 
     public function testInvalidPath(): void
     {
-        $this->expectError('<page><body><each items="1users"><body/></each></body></page>', '路径');
+        $this->expectError('<page><body><each items="1users"><body/></each></body></page>', 'invalid path');
     }
 
     public function testXmlSyntaxError(): void
     {
-        $this->expectError('<page><body>', 'XML');
+        $this->expectError('<page><body>', 'XML syntax error');
     }
 
     public function testErrorCarriesNodePath(): void
@@ -479,7 +479,7 @@ final class CompilerTest extends TestCase
     {
         $this->expectError(
             '<page><body><each items="!users"><body><text>x</text></body></each></body></page>',
-            '非法路径'
+            'invalid path'
         );
     }
 
@@ -492,7 +492,7 @@ final class CompilerTest extends TestCase
 
         $this->expectError(
             '<page><body><form action="/s"><fields><field type="column" name="a" label="A"/></fields></form></body></page>',
-            'type 必须是 "field"'
+            'type must be "field"'
         );
     }
 
@@ -505,7 +505,7 @@ final class CompilerTest extends TestCase
 
         $this->expectError(
             '<page><body><table items="users"><columns><column type="field" label="ID" pop="{{ row.id }}"/></columns></table></body></page>',
-            'type 必须是 "column"'
+            'type must be "column"'
         );
     }
 
@@ -513,7 +513,7 @@ final class CompilerTest extends TestCase
     {
         $this->expectError(
             '<page><body><form action="/s"><fields><field name="a" label="{{ user.name }}"/></fields></form></body></page>',
-            '不支持 {{ }} 插值'
+            'does not support {{ }} interpolation'
         );
     }
 
@@ -521,19 +521,19 @@ final class CompilerTest extends TestCase
     {
         $this->expectError(
             '<page><body><table items="users" empty="{{ user.name }}"><columns><column label="ID" pop="{{ row.id }}"/></columns></table></body></page>',
-            '不支持 {{ }} 插值'
+            'does not support {{ }} interpolation'
         );
     }
 
     /* ---------------------------------------------------------------- *
-     * 前端框架兼容：属性透传 / <el> / <attr>
+     * Framework front-end compatibility: attribute passthrough / <el> / <attr>
      * ---------------------------------------------------------------- */
 
     public function testPassthroughAlpineOnEl(): void
     {
-        $out = $this->compile('<page><body><el tag="div" x-data="{ open: false }" x-on:click="open = ! open" x-cloak="" x-show="open"><text>切换</text></el></body></page>');
+        $out = $this->compile('<page><body><el tag="div" x-data="{ open: false }" x-on:click="open = ! open" x-cloak="" x-show="open"><text>Toggle</text></el></body></page>');
         $this->assertSame(
-            "<div x-data=\"{ open: false }\" x-on:click=\"open = ! open\" x-cloak=\"\" x-show=\"open\">\n切换\n</div>",
+            "<div x-data=\"{ open: false }\" x-on:click=\"open = ! open\" x-cloak=\"\" x-show=\"open\">\nToggle\n</div>",
             $out
         );
     }
@@ -553,9 +553,9 @@ final class CompilerTest extends TestCase
         ];
         foreach ($cases as $attr => $expected) {
             $this->assertSame(
-                '<h2' . $expected . '>标题</h2>',
-                $this->compile('<page><body><heading level="2" ' . $attr . '>标题</heading></body></page>'),
-                "属性 {$attr} 未按预期透传"
+                '<h2' . $expected . '>Title</h2>',
+                $this->compile('<page><body><heading level="2" ' . $attr . '>Title</heading></body></page>'),
+                "attribute {$attr} did not forward as expected"
             );
         }
     }
@@ -582,16 +582,16 @@ final class CompilerTest extends TestCase
     public function testPassthroughOnLinkFormTableFieldColumn(): void
     {
         $out = $this->compile('<page><body>'
-            . '<link href="/x" x-on:click="go()">去</link>'
+            . '<link href="/x" x-on:click="go()">Go</link>'
             . '<form action="/s" x-on:submit.prevent="save()"><fields>'
-            . '<field name="q" label="查" x-model="kw"/>'
+            . '<field name="q" label="Query" x-model="kw"/>'
             . '</fields></form>'
             . '<table items="users" class="grid"><columns>'
             . '<column label="ID" pop="{{ row.id }}" class="w-8"/>'
             . '</columns></table>'
             . '</body></page>');
 
-        $this->assertStringContainsString('<a href="/x" x-on:click="go()">去</a>', $out);
+        $this->assertStringContainsString('<a href="/x" x-on:click="go()">Go</a>', $out);
         $this->assertStringContainsString('<form action="/s" method="post" x-on:submit.prevent="save()">', $out);
         $this->assertStringContainsString('name="q" id="q" x-model="kw"', $out);
         $this->assertStringContainsString('<table class="grid">', $out);
@@ -600,46 +600,46 @@ final class CompilerTest extends TestCase
 
     public function testUnknownAttributeRejected(): void
     {
-        $this->expectError('<page><body><heading level="2" levl="3">T</heading></body></page>', '未知属性 "levl"');
+        $this->expectError('<page><body><heading level="2" levl="3">T</heading></body></page>', 'unknown attribute "levl"');
     }
 
     public function testPassthroughOnTaglessNodeRejected(): void
     {
-        $this->expectError('<page><body><text x-data="{ open: true }">hi</text></body></page>', '不输出标签');
+        $this->expectError('<page><body><text x-data="{ open: true }">hi</text></body></page>', 'emits no tag');
     }
 
     public function testPassthroughOnIfRejected(): void
     {
-        $this->expectError('<page><body><if when="a" class="x"><then><text>t</text></then></if></body></page>', '不输出标签');
+        $this->expectError('<page><body><if when="a" class="x"><then><text>t</text></then></if></body></page>', 'emits no tag');
     }
 
     public function testUnknownPageAttributeRejected(): void
     {
-        $this->expectError('<page title="T" layuot="layout/main"><body><text>x</text></body></page>', '未知属性 "layuot"');
+        $this->expectError('<page title="T" layuot="layout/main"><body><text>x</text></body></page>', 'unknown attribute "layuot"');
     }
 
     public function testUnexpectedPageChildRejected(): void
     {
-        $this->expectError('<page><boddy><text>x</text></boddy></page>', '不允许的子元素');
+        $this->expectError('<page><boddy><text>x</text></boddy></page>', 'disallowed child element');
     }
 
     public function testStrayChildInLeafRejected(): void
     {
-        $this->expectError('<page><body><heading level="2">标<strong>题</strong></heading></body></page>', '不允许的子元素');
+        $this->expectError('<page><body><heading level="2">Te<strong>xt</strong></heading></body></page>', 'disallowed child element');
     }
 
     public function testContainerStrayChildRejected(): void
     {
         $this->expectError(
             '<page><body><table items="users"><columns><colum label="ID" pop="{{ row.id }}"/></columns></table></body></page>',
-            '不允许的子元素 <colum>'
+            'disallowed child element <colum>'
         );
     }
 
     public function testElNode(): void
     {
-        $out = $this->compile('<page><body><el tag="section" class="card"><heading level="2">标题</heading><text>正文</text></el></body></page>');
-        $this->assertSame("<section class=\"card\">\n<h2>标题</h2>\n正文\n</section>", $out);
+        $out = $this->compile('<page><body><el tag="section" class="card"><heading level="2">Title</heading><text>Content</text></el></body></page>');
+        $this->assertSame("<section class=\"card\">\n<h2>Title</h2>\nContent\n</section>", $out);
     }
 
     public function testElEmptyBody(): void
@@ -650,67 +650,67 @@ final class CompilerTest extends TestCase
 
     public function testElMissingTag(): void
     {
-        $this->expectError('<page><body><el class="x"><text>t</text></el></body></page>', '缺少 string 字段 "tag"');
+        $this->expectError('<page><body><el class="x"><text>t</text></el></body></page>', 'missing string field "tag"');
     }
 
     public function testElInvalidTag(): void
     {
-        $this->expectError('<page><body><el tag="DIV!"><text>t</text></el></body></page>', '非法的 tag');
+        $this->expectError('<page><body><el tag="DIV!"><text>t</text></el></body></page>', 'invalid tag');
     }
 
     public function testAttrNodeCoversAtShorthand(): void
     {
-        $out = $this->compile('<page><body><el tag="button" class="btn"><attr name="@click" value="open = true"/><attr name=":class" value="open &amp;&amp; \'on\'"/><text>切换</text></el></body></page>');
+        $out = $this->compile('<page><body><el tag="button" class="btn"><attr name="@click" value="open = true"/><attr name=":class" value="open &amp;&amp; \'on\'"/><text>Toggle</text></el></body></page>');
         $this->assertSame(
-            "<button class=\"btn\" @click=\"open = true\" :class=\"open &amp;&amp; 'on'\">\n切换\n</button>",
+            "<button class=\"btn\" @click=\"open = true\" :class=\"open &amp;&amp; 'on'\">\nToggle\n</button>",
             $out
         );
     }
 
     public function testAttrMissingValue(): void
     {
-        $this->expectError('<page><body><el tag="div"><attr name="@click"/><text>t</text></el></body></page>', '缺少 value 属性');
+        $this->expectError('<page><body><el tag="div"><attr name="@click"/><text>t</text></el></body></page>', 'missing its value attribute');
     }
 
     public function testAttrMissingName(): void
     {
-        $this->expectError('<page><body><el tag="div"><attr value="x"/><text>t</text></el></body></page>', '缺少 name 属性');
+        $this->expectError('<page><body><el tag="div"><attr value="x"/><text>t</text></el></body></page>', 'missing its name attribute');
     }
 
     public function testAttrDuplicateRejected(): void
     {
-        $this->expectError('<page><body><el tag="div" class="a"><attr name="class" value="b"/><text>t</text></el></body></page>', '重复');
+        $this->expectError('<page><body><el tag="div" class="a"><attr name="class" value="b"/><text>t</text></el></body></page>', 'duplicates an existing attribute');
     }
 
     public function testAttrOnTaglessNodeRejected(): void
     {
-        $this->expectError('<page><body><text><attr name="@click" value="x"/>hi</text></body></page>', '不输出标签');
+        $this->expectError('<page><body><text><attr name="@click" value="x"/>hi</text></body></page>', 'emits no tag');
     }
 
     public function testAttrInContainerRejected(): void
     {
-        $this->expectError('<page><body><attr name="@click" value="x"/><text>hi</text></body></page>', '<attr> 只能作为');
+        $this->expectError('<page><body><attr name="@click" value="x"/><text>hi</text></body></page>', '<attr> may only be');
     }
 
     public function testDunderIsAtShorthand(): void
     {
-        $out = $this->compile('<page><body><el tag="button" __click="open = ! open" __keydown.escape.window="close()"><text>切换</text></el></body></page>');
+        $out = $this->compile('<page><body><el tag="button" __click="open = ! open" __keydown.escape.window="close()"><text>Toggle</text></el></body></page>');
         $this->assertSame(
-            "<button @click=\"open = ! open\" @keydown.escape.window=\"close()\">\n切换\n</button>",
+            "<button @click=\"open = ! open\" @keydown.escape.window=\"close()\">\nToggle\n</button>",
             $out
         );
     }
 
     public function testDunderOnTaglessNodeRejected(): void
     {
-        $this->expectError('<page><body><text __click="x">hi</text></body></page>', '不输出标签');
+        $this->expectError('<page><body><text __click="x">hi</text></body></page>', 'emits no tag');
     }
 
     public function testDunderDuplicateWithAttrRejected(): void
     {
         $this->expectError(
             '<page><body><el tag="div" __click="a"><attr name="@click" value="b"/><text>t</text></el></body></page>',
-            '重复'
+            'duplicates an existing attribute'
         );
     }
 
@@ -723,8 +723,8 @@ final class CompilerTest extends TestCase
     public function testAttrCannotShadowDslField(): void
     {
         $this->expectError(
-            '<page><body><link href="/x"><attr name="href" value="/y"/>去</link></body></page>',
-            '与节点字段 "href" 同名'
+            '<page><body><link href="/x"><attr name="href" value="/y"/>Go</link></body></page>',
+            'collides with the node field "href"'
         );
     }
 
@@ -738,7 +738,7 @@ final class CompilerTest extends TestCase
         foreach ($cases as $attr => $suggested) {
             try {
                 $this->compile('<page><body><el tag="div" ' . $attr . '><text>t</text></el></body></page>');
-                $this->fail("{$attr} 应当编译失败");
+                $this->fail("{$attr} should have failed to compile");
             } catch (CompileException $e) {
                 $this->assertStringContainsString($suggested, $e->getMessage());
             }
@@ -749,7 +749,7 @@ final class CompilerTest extends TestCase
     {
         try {
             $this->compile('<page><body><el tag="div" x-on-click="go()"><text>t</text></el></body></page>');
-            $this->fail('应当编译失败');
+            $this->fail('should have failed to compile');
         } catch (CompileException $e) {
             $this->assertStringContainsString('__click', $e->getMessage());
         }
@@ -766,7 +766,7 @@ final class CompilerTest extends TestCase
     {
         $this->expectError(
             '<page><body><if when="a"><then><text>T</text></then><els><text>E</text></els></if></body></page>',
-            '不允许的子元素 <els>'
+            'disallowed child element <els>'
         );
     }
 
@@ -774,7 +774,7 @@ final class CompilerTest extends TestCase
     {
         $this->expectError(
             '<page><body><each items="u"><body><text>T</text></body><extra><text>X</text></extra></each></body></page>',
-            '不允许的子元素 <extra>'
+            'disallowed child element <extra>'
         );
     }
 
@@ -782,22 +782,22 @@ final class CompilerTest extends TestCase
     {
         $this->expectError(
             '<page><body><component name="card"><data><title>T</title></data><foo/></component></body></page>',
-            '不允许的子元素 <foo>'
+            'disallowed child element <foo>'
         );
     }
 
     public function testSectionsStrayChildRejected(): void
     {
         $this->expectError(
-            '<page layout="layout/main"><sections><sectoin name="content"><text>正文</text></sectoin></sections></page>',
-            '不允许的子元素 <sectoin>'
+            '<page layout="layout/main"><sections><sectoin name="content"><text>Content</text></sectoin></sections></page>',
+            'disallowed child element <sectoin>'
         );
     }
 
     public function testTripleBraceRejected(): void
     {
         foreach (['{{{ user.name }}}', '{{ user.name }}}', '{{{ user.name }}'] as $text) {
-            $this->expectError('<page><body><text>' . $text . '</text></body></page>', '三个花括号');
+            $this->expectError('<page><body><text>' . $text . '</text></body></page>', 'three braces');
         }
     }
 
@@ -811,7 +811,7 @@ final class CompilerTest extends TestCase
     {
         try {
             $this->compile('<page><body><text @click="open = true">hi</text></body></page>');
-            $this->fail('应当编译失败');
+            $this->fail('should have failed to compile');
         } catch (CompileException $e) {
             $this->assertStringContainsString('error parsing attribute name', $e->getMessage());
             $this->assertStringContainsString('__click', $e->getMessage());
@@ -820,12 +820,12 @@ final class CompilerTest extends TestCase
 
     public function testAtSignHintOnlyFiresForAttributePosition(): void
     {
-        // 文本里的邮箱不该触发提示：@ 前面不是空白
+        // an email address in text must not trigger the hint: '@' is not preceded by whitespace
         try {
-            $this->compile('<page><body><text>联系 a@b.com</text></body>');
-            $this->fail('应当编译失败');
+            $this->compile('<page><body><text>contact a@b.com</text></body>');
+            $this->fail('should have failed to compile');
         } catch (CompileException $e) {
-            $this->assertStringContainsString('XML 语法错误', $e->getMessage());
+            $this->assertStringContainsString('XML syntax error', $e->getMessage());
             $this->assertStringNotContainsString('__click', $e->getMessage());
         }
     }
@@ -833,25 +833,25 @@ final class CompilerTest extends TestCase
     public function testBareTextInContainersRejected(): void
     {
         $cases = [
-            '<page><body><el tag="div">裸文本</el></body></page>' => 'body[0].body',
-            '<page><body><if when="a"><then>裸文本</then></if></body></page>' => 'then',
-            '<page><body><if when="a"><then><text>T</text></then><else>裸文本</else></if></body></page>' => 'else',
-            '<page><body><each items="u"><body>裸文本</body></each></body></page>' => 'body',
-            '<page><body><table items="u"><columns><column label="A"><content>裸文本</content></column></columns></table></body></page>' => 'content',
-            '<page layout="layout/main"><sections><section name="content">裸文本</section></sections></page>' => 'sections.content',
-            '<page><body>裸文本</body></page>' => 'body',
-            // CDATA 同样够不到节点模型
-            '<page><body><el tag="div"><![CDATA[<b>粗</b>]]></el></body></page>' => 'body[0].body',
-            '<page><body><table items="u"><columns>裸文本<column label="A" bind="b"/></columns></table></body></page>' => 'columns',
-            '<page><body><form action="/s"><fields>裸文本<field name="a" label="A"/></fields></form></body></page>' => 'fields',
-            '<page><body><component name="card"><data>裸文本</data></component></body></page>' => 'data',
+            '<page><body><el tag="div">bare text</el></body></page>' => 'body[0].body',
+            '<page><body><if when="a"><then>bare text</then></if></body></page>' => 'then',
+            '<page><body><if when="a"><then><text>T</text></then><else>bare text</else></if></body></page>' => 'else',
+            '<page><body><each items="u"><body>bare text</body></each></body></page>' => 'body',
+            '<page><body><table items="u"><columns><column label="A"><content>bare text</content></column></columns></table></body></page>' => 'content',
+            '<page layout="layout/main"><sections><section name="content">bare text</section></sections></page>' => 'sections.content',
+            '<page><body>bare text</body></page>' => 'body',
+            // CDATA cannot reach the node model either
+            '<page><body><el tag="div"><![CDATA[<b>bold</b>]]></el></body></page>' => 'body[0].body',
+            '<page><body><table items="u"><columns>bare text<column label="A" bind="b"/></columns></table></body></page>' => 'columns',
+            '<page><body><form action="/s"><fields>bare text<field name="a" label="A"/></fields></form></body></page>' => 'fields',
+            '<page><body><component name="card"><data>bare text</data></component></body></page>' => 'data',
         ];
         foreach ($cases as $xml => $needle) {
             try {
                 $this->compile($xml);
-                $this->fail("{$xml} 应当编译失败");
+                $this->fail("{$xml} should have failed to compile");
             } catch (CompileException $e) {
-                $this->assertStringContainsString('不能直接写文本', $e->getMessage(), $xml);
+                $this->assertStringContainsString('cannot write text', $e->getMessage(), $xml);
                 $this->assertStringContainsString($needle, $e->getMessage(), $xml);
             }
         }
@@ -859,8 +859,8 @@ final class CompilerTest extends TestCase
 
     public function testIndentationAndLeafTextAreNotBareText(): void
     {
-        $out = $this->compile("<page><body>\n  <el tag=\"div\">\n    <heading level=\"2\">标题</heading>\n    <text>正文</text>\n  </el>\n</body></page>");
-        $this->assertSame("<div>\n<h2>标题</h2>\n正文\n</div>", $out);
+        $out = $this->compile("<page><body>\n  <el tag=\"div\">\n    <heading level=\"2\">Title</heading>\n    <text>Content</text>\n  </el>\n</body></page>");
+        $this->assertSame("<div>\n<h2>Title</h2>\nContent\n</div>", $out);
     }
 
     public function testStrayChildRejectedEverywhere(): void
@@ -874,9 +874,9 @@ final class CompilerTest extends TestCase
         foreach ($cases as $xml) {
             try {
                 $this->compile($xml);
-                $this->fail("{$xml} 应当编译失败");
+                $this->fail("{$xml} should have failed to compile");
             } catch (CompileException $e) {
-                $this->assertStringContainsString('不允许的子元素 <foo>', $e->getMessage(), $xml);
+                $this->assertStringContainsString('disallowed child element <foo>', $e->getMessage(), $xml);
             }
         }
     }
@@ -886,15 +886,15 @@ final class CompilerTest extends TestCase
         $this->expectError(
             '<page><body><form action="/s"><fields><field name="a" label="A" input="select">'
             . '<options><option value="x"><b>X</b></option></options></field></fields></form></body></page>',
-            '只接受文本内容'
+            'only accepts text content'
         );
     }
 
     public function testAttrWithChildContentRejected(): void
     {
         $this->expectError(
-            '<page><body><el tag="div"><attr name="@click" value="go()">多余</attr></el></body></page>',
-            '不能带子内容'
+            '<page><body><el tag="div"><attr name="@click" value="go()">extra</attr></el></body></page>',
+            'cannot carry child content'
         );
     }
 
@@ -928,7 +928,7 @@ final class CompilerTest extends TestCase
             '<page><body><el tag="div">'
             . '<attr name="class" value="a"/><attr name="class" value="b"/>'
             . '</el></body></page>',
-            'body[0]: <attr name="class"> 重复定义'
+            'body[0]: <attr name="class"> is defined more than once'
         );
     }
 
@@ -941,7 +941,7 @@ final class CompilerTest extends TestCase
             . '<field name="a" label="A" input="select" placeholder="p">'
             . '<options><option value="x">X</option></options></field>'
             . '</fields></form></body></page>',
-            '"placeholder" 仅用于 text / password / email / number 字段，当前 input 是 "select"'
+            '"placeholder" is only for the text / password / email / number fields; the input here is "select"'
         );
     }
 
@@ -961,15 +961,15 @@ final class CompilerTest extends TestCase
         $this->expectError(
             '<page><body><form action="/s"><fields><field name="s" label="S" input="select">'
             . '<options><option value="a">{{ a }}</option></options></field></fields></form></body></page>',
-            '不支持 {{ }} 插值'
+            'does not support {{ }} interpolation'
         );
     }
 
     public function testEmptyPathSegmentRejected(): void
     {
         $this->expectError(
-            '<page><body><link href="/u/{{ user..name }}">编辑</link></body></page>',
-            '非法路径 "user..name"'
+            '<page><body><link href="/u/{{ user..name }}">Edit</link></body></page>',
+            'invalid path "user..name"'
         );
     }
 
@@ -979,15 +979,15 @@ final class CompilerTest extends TestCase
         // marker, so the hashes are rendered as written instead of being evaluated.
         self::assertStringContainsString(
             '\##',
-            $this->compile('<page><body><text>## 说明 ##</text></body></page>')
+            $this->compile('<page><body><text>## a note ##</text></body></page>')
         );
     }
 
     public function testSingleHashStaysLiteral(): void
     {
         self::assertStringContainsString(
-            '# 一级标题',
-            $this->compile('<page><body><text># 一级标题</text></body></page>')
+            '# Heading 1',
+            $this->compile('<page><body><text># Heading 1</text></body></page>')
         );
     }
 

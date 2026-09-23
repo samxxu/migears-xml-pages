@@ -55,10 +55,10 @@ class Compiler extends PagesCompiler
 
         if ($xml === false) {
             $msg = $errors !== [] ? trim($errors[0]->message) : '';
-            throw new CompileException('XML 语法错误' . ($msg !== '' ? ': ' . $msg : '') . $this->atSignHint($source));
+            throw new CompileException('XML syntax error' . ($msg !== '' ? ': ' . $msg : '') . $this->atSignHint($source));
         }
         if ($xml->getName() !== 'page') {
-            throw new CompileException('XML 根元素必须是 <page>');
+            throw new CompileException('XML root element must be <page>');
         }
 
         return $this->pageFromElement($xml);
@@ -76,7 +76,7 @@ class Compiler extends PagesCompiler
             return '';
         }
 
-        return '；XML 属性名不能含 "@"：写 @click 请改用 __click（等价 x-on:click）';
+        return '. XML attribute names cannot contain "@": write @click as __click (equivalent to x-on:click)';
     }
 
     private function pageFromElement(SimpleXMLElement $page): array
@@ -85,7 +85,7 @@ class Compiler extends PagesCompiler
         foreach ($page->attributes() as $name => $value) {
             $name = (string) $name;
             if (! in_array($name, ['title', 'layout'], true)) {
-                $this->error("page: 未知属性 \"{$name}\"，仅支持 title 与 layout（页面根不输出标签，无法承载透传属性）");
+                $this->error("page: unknown attribute \"{$name}\"; only title and layout are supported (the page root does not emit a tag and cannot carry forwarded attributes)");
             }
             $out[$name] = (string) $value;
         }
@@ -99,7 +99,7 @@ class Compiler extends PagesCompiler
             $sections = [];
             foreach ($this->childList($page->sections, 'section') as $i => $section) {
                 if (! isset($section['name'])) {
-                    $this->error("sections[{$i}]: section 缺少 name 属性");
+                    $this->error("sections[{$i}]: section is missing its name attribute");
                 }
                 $name = (string) $section['name'];
                 $sections[$name] = $this->nodesFromElement($section, 'sections.' . $name);
@@ -133,7 +133,7 @@ class Compiler extends PagesCompiler
     private function nodesFromElement(SimpleXMLElement $parent, string $path, bool $allowAttr = false): array
     {
         if ($this->hasBareText($parent)) {
-            $this->error("{$path}: 不能直接写文本或 CDATA（会被丢弃），请用 <text> 包裹");
+            $this->error("{$path}: cannot write text or CDATA directly (it would be dropped); wrap it in <text>");
         }
 
         $nodes = [];
@@ -142,8 +142,8 @@ class Compiler extends PagesCompiler
             if ($child->getName() === 'attr') {
                 // <attr> decorates the parent tag; it is not a content node.
                 if (! $allowAttr) {
-                    $this->error("{$path}: <attr> 只能作为会输出标签的节点的子元素"
-                        . '（heading / link / el / form / table / field / column）');
+                    $this->error("{$path}: <attr> may only be a child of a node that emits a tag"
+                        . ' (heading / link / el / form / table / field / column)');
                 }
                 continue;
             }
@@ -165,13 +165,13 @@ class Compiler extends PagesCompiler
     private function assertChildren(SimpleXMLElement $parent, array $allowed, string $path, bool $allowText = false): void
     {
         if (! $allowText && $this->hasBareText($parent)) {
-            $this->error("{$path}: 不能直接写文本或 CDATA（会被丢弃），可用子元素: " . implode(' / ', $allowed));
+            $this->error("{$path}: cannot write text or CDATA directly (it would be dropped); allowed child elements: " . implode(' / ', $allowed));
         }
 
         foreach ($parent->children() as $child) {
             $name = $child->getName();
             if (! in_array($name, $allowed, true)) {
-                $this->error("{$path}: 不允许的子元素 <{$name}>（可用: " . implode(' / ', $allowed) . '）');
+                $this->error("{$path}: disallowed child element <{$name}> (allowed: " . implode(' / ', $allowed) . ')');
             }
         }
     }
@@ -206,7 +206,7 @@ class Compiler extends PagesCompiler
             $attrs[(string) $name] = (string) $value;
         }
         if (isset($attrs['type']) && $attrs['type'] !== $type) {
-            $this->error("{$path}: type 必须是 \"{$type}\"（元素名已决定节点类型）");
+            $this->error("{$path}: type must be \"{$type}\" (the element name decides the node type)");
         }
 
         $node = $attrs;
@@ -257,7 +257,7 @@ class Compiler extends PagesCompiler
             $this->assertChildren($el, ['data', 'attr'], $path);
             if (isset($el->data)) {
                 if ($this->hasBareText($el->data)) {
-                    $this->error("{$path}.data: 不能直接写文本（会被丢弃），子元素名即数据键");
+                    $this->error("{$path}.data: cannot write text directly (it would be dropped); child element names are the data keys");
                 }
                 $data = [];
                 foreach ($el->data->children() as $key => $value) {
@@ -293,7 +293,7 @@ class Compiler extends PagesCompiler
             $attrs[(string) $name] = (string) $value;
         }
         if (isset($attrs['type']) && $attrs['type'] !== 'field') {
-            $this->error("{$path}: type 必须是 \"field\"（元素名已决定节点类型）");
+            $this->error("{$path}: type must be \"field\" (the element name decides the node type)");
         }
         $this->assertChildren($el, ['options', 'attr'], $path);
 
@@ -310,10 +310,10 @@ class Compiler extends PagesCompiler
             $options = [];
             foreach ($this->childList($el->options, 'option') as $i => $option) {
                 if ($option->children()->count() > 0) {
-                    $this->error("{$path}.options[{$i}]: <option> 只接受文本内容与 value 属性");
+                    $this->error("{$path}.options[{$i}]: <option> only accepts text content and a value attribute");
                 }
                 if (! isset($option['value'])) {
-                    $this->error("{$path}.options[{$i}]: option 缺少 value 属性");
+                    $this->error("{$path}.options[{$i}]: option is missing its value attribute");
                 }
                 $options[(string) $option['value']] = trim((string) $option);
             }
@@ -336,7 +336,7 @@ class Compiler extends PagesCompiler
             $attrs[(string) $name] = (string) $value;
         }
         if (isset($attrs['type']) && $attrs['type'] !== 'column') {
-            $this->error("{$path}: type 必须是 \"column\"（元素名已决定节点类型）");
+            $this->error("{$path}: type must be \"column\" (the element name decides the node type)");
         }
         $this->assertChildren($el, ['content', 'attr'], $path);
 
@@ -377,8 +377,8 @@ class Compiler extends PagesCompiler
             return false;
         }
 
-        $this->error("{$where}: {$name} 的值 \"{$value}\" 不是布尔；真值可用 "
-            . implode(' / ', self::TRUE_VALUES) . ' / ' . $name . ' / 空值，假值可用 '
+        $this->error("{$where}: the value \"{$value}\" for {$name} is not a boolean; truthy values may be "
+            . implode(' / ', self::TRUE_VALUES) . ' / ' . $name . ' / empty, and falsy values may be '
             . implode(' / ', self::FALSE_VALUES));
     }
 
@@ -387,7 +387,7 @@ class Compiler extends PagesCompiler
      *
      * `level` and `rows` are counts and sizes, so the only spellable value is a
      * decimal number. Casting silently turned "two" into 0, and the failure then
-     * arrived as a range complaint ("level 必须是 1-6 的整数，收到 0") about a
+     * arrived as a range complaint ("level must be an integer from 1 to 6, got 0") about a
      * value nobody wrote. Reading the syntax here leaves range and enum checks
      * to the shared compiler, which is where they belong.
      */
@@ -395,7 +395,7 @@ class Compiler extends PagesCompiler
     {
         $normalised = trim($value);
         if (! preg_match('/^[+-]?\d+$/', $normalised)) {
-            $this->error("{$where}: {$name} 的值 \"{$value}\" 不是整数；请写十进制数字（如 2）");
+            $this->error("{$where}: the value \"{$value}\" for {$name} is not an integer; write a decimal number (e.g. 2)");
         }
 
         return (int) $normalised;
@@ -415,21 +415,21 @@ class Compiler extends PagesCompiler
         $extra = [];
         foreach ($el->attr as $attr) {
             if ($attr->children()->count() > 0 || $this->hasBareText($attr)) {
-                $this->error("{$path}: <attr> 只接受 name / value 属性，不能带子内容");
+                $this->error("{$path}: <attr> only accepts name / value attributes and cannot carry child content");
             }
             if (! isset($attr['name'])) {
-                $this->error("{$path}: <attr> 缺少 name 属性");
+                $this->error("{$path}: <attr> is missing its name attribute");
             }
             $name = (string) $attr['name'];
             if (! isset($attr['value'])) {
-                $this->error("{$path}: <attr name=\"{$name}\"> 缺少 value 属性");
+                $this->error("{$path}: <attr name=\"{$name}\"> is missing its value attribute");
             }
             // Two <attr> with the same name would collapse into one key here and
             // the first would vanish silently, so the clash is named while both
             // are still visible. (A clash with a plain attribute of the same
             // name is caught later, by the duplicate check in the shared layer.)
             if (isset($extra[$name])) {
-                $this->error("{$path}: <attr name=\"{$name}\"> 重复定义，同名属性只允许出现一次");
+                $this->error("{$path}: <attr name=\"{$name}\"> is defined more than once; an attribute of the same name may only appear once");
             }
             $extra[$name] = (string) $attr['value'];
         }

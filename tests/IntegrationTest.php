@@ -29,13 +29,13 @@ final class IntegrationTest extends TestCase
             ],
         ]);
 
-        $this->assertStringContainsString('<title>用户管理', $html);
+        $this->assertStringContainsString('<title>User management', $html);
         $this->assertStringContainsString('</title>', $html);
-        $this->assertStringContainsString('<h2>用户列表</h2>', $html);
+        $this->assertStringContainsString('<h2>User list</h2>', $html);
         $this->assertStringContainsString('<td>1</td>', $html);
         $this->assertStringContainsString('<td>Alice</td>', $html);
         $this->assertStringContainsString('&lt;Bob&gt;', $html);
-        $this->assertStringContainsString('<a href="/users/1/edit">编辑</a>', $html);
+        $this->assertStringContainsString('<a href="/users/1/edit">Edit</a>', $html);
         $this->assertStringNotContainsString('##', $html);
     }
 
@@ -51,7 +51,7 @@ final class IntegrationTest extends TestCase
         $tpl = new Template($views, $this->tempDir());
         $html = $tpl->render('users', ['users' => []]);
 
-        $this->assertStringContainsString('暂无数据', $html);
+        $this->assertStringContainsString('No data', $html);
     }
 
     public function testComponentDataIsEscapedExactlyOnce(): void

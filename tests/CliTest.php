@@ -26,13 +26,13 @@ final class CliTest extends TestCase
     {
         $dir = $this->tempDir();
         $source = $dir . '/hello.page.xml';
-        file_put_contents($source, '<page><body><text>你好</text></body></page>');
+        file_put_contents($source, '<page><body><text>Hello</text></body></page>');
 
         [$output, $code] = $this->runCli(['compile', $source]);
         $this->assertSame(0, $code, $output);
 
         $this->assertFileExists($dir . '/hello.tpl.php');
-        $this->assertSame('你好', file_get_contents($dir . '/hello.tpl.php'));
+        $this->assertSame('Hello', file_get_contents($dir . '/hello.tpl.php'));
     }
 
     public function testCompileDirectory(): void

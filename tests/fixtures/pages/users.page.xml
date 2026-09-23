@@ -1,17 +1,17 @@
-<page title="用户管理" layout="layout/main">
+<page title="User management" layout="layout/main">
     <sections>
         <section name="title">
-            <text>用户管理</text>
+            <text>User management</text>
         </section>
         <section name="content">
-            <heading level="2">用户列表</heading>
-            <table items="users" as="user" empty="暂无数据">
+            <heading level="2">User list</heading>
+            <table items="users" as="user" empty="No data">
                 <columns>
                     <column label="ID" pop="{{ user.id }}"/>
-                    <column label="姓名" pop="{{ user.name }}"/>
-                    <column label="操作">
+                    <column label="Name" pop="{{ user.name }}"/>
+                    <column label="Actions">
                         <content>
-                            <link href="/users/{{ user.id }}/edit">编辑</link>
+                            <link href="/users/{{ user.id }}/edit">Edit</link>
                         </content>
                     </column>
                 </columns>

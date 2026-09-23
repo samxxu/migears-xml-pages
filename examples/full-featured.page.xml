@@ -1,105 +1,118 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  migears/xml-pages —— 全特性示例
+  migears/xml-pages — a full-featured example
   ==================================================================
 
-  本文件覆盖 xml-pages 的全部声明语法，可直接编译并渲染，也可作为
-  编写自己页面的参考。
+  This file covers every declarative construct xml-pages supports. It can be
+  compiled and rendered directly, and also serves as a reference for writing
+  your own pages.
 
-  结构约定（详见 README「XML 编写注意」）：
-    · 元素名即节点类型：text / heading / link / if / each / form / table / component
-    · 字段走属性，如 <heading level="2">、<link href="...">
-    · 叶子节点的元素文本即 text 字段，首尾空白会被修剪
-    · 容器子元素：<then>/<else>、<body>、<fields>、<columns>、<content>、<data>
+  Structural conventions (see README "XML writing notes"):
+    · The element name is the node type: text / heading / link / if / each / form / table / component
+    · Fields go in attributes, e.g. <heading level="2">, <link href="...">
+    · A leaf element's own text is its text field; leading and trailing
+      whitespace is trimmed
+    · Container children: <then>/<else>, <body>, <fields>, <columns>, <content>, <data>
 
-  编译（产物落到 examples/views/，与 layout 同处一个模板搜索路径）：
+  Compile (the output lands in examples/views/, on the same template search
+  path as the layout):
       php bin/xml-pages compile examples/full-featured.page.xml examples/views
 
-  渲染（内置组件在包内 components/，本示例的自定义组件在 examples/components/）：
+  Render (built-in components live in the package components/, this example's
+  custom component in examples/components/):
       $tpl = new Template(__DIR__ . '/examples/views');
-      $tpl->addPath(__DIR__ . '/components');            // 内置组件：card / button / alert / badge
-      $tpl->addPath(__DIR__ . '/examples/components');   // 自定义组件：my-card
+      $tpl->addPath(__DIR__ . '/components');            // built-in: card / button / alert / badge
+      $tpl->addPath(__DIR__ . '/examples/components');   // custom: my-card
       echo $tpl->render('full-featured', $data);
 
-  注：layout 与 body 互斥，无法在同一文件内同时演示。无 layout 的独立页面
-  写法见文件末尾注释。
+  Note: layout and body are mutually exclusive, so they cannot be demonstrated
+  in the same file. The standalone (layout-less) page form is commented out at
+  the end of the file.
 -->
-<page title="用户管理 · 全特性示例" layout="layout/main">
+<page title="User management · Full-featured example" layout="layout/main">
     <sections>
         <section name="content">
 
             <!-- ======================================================
-                 1. heading / text / link —— 标题、文本与链接
+                 1. heading / text / link —— titles, text and links
                  ====================================================== -->
 
-            <!-- heading：level 可省略（默认 1），取值 1-6 -->
-            <heading>页面主体</heading>
-            <heading level="2">1. 标题、文本与链接</heading>
-            <heading level="3">三级标题</heading>
+            <!-- heading: level is optional (default 1), valid range 1-6 -->
+            <heading>Page content</heading>
+            <heading level="2">1. Titles, text and links</heading>
+            <heading level="3">Third-level heading</heading>
 
-            <!-- text：元素文本即内容，字面部分原样输出，插值自动转义 -->
-            <text>这是一段纯文本。</text>
-            <text>你好，{{ user.name }}！你有 {{ user.messageCount }} 条未读消息。</text>
+            <!-- text: the element's own text is the content; literal parts are
+                 emitted as written and interpolations are auto-escaped -->
+            <text>This is a plain paragraph.</text>
+            <text>Hello, {{ user.name }}! You have {{ user.messageCount }} unread messages.</text>
 
-            <!-- 需要原样输出的 HTML 用 CDATA 包裹 -->
-            <text><![CDATA[<strong>加粗</strong>、<em>斜体</em>，标签原样输出。]]></text>
+            <!-- HTML that must be emitted as written is wrapped in CDATA -->
+            <text><![CDATA[<strong>bold</strong>, <em>italic</em> — tags are emitted as written.]]></text>
 
-            <!-- XML 实体：&lt; &gt; &amp; 分别表示 < > & -->
-            <text>比较写法：a &lt; b、b &gt; a、逻辑与 a &amp;&amp; b。</text>
+            <!-- XML entities: &lt; &gt; &amp; stand for < > & -->
+            <text>Comparison: a &lt; b, b &gt; a, and logical a &amp;&amp; b.</text>
 
-            <!-- 多行文本：元素内部换行原样保留，首尾空白被修剪 -->
-            <text>第一行
-第二行</text>
+            <!-- Multi-line text: internal line breaks are kept, leading and
+                 trailing whitespace is trimmed -->
+            <text>first line
+second line</text>
 
-            <!-- link：href 必填，元素文本是链接文字；target 可选；属性值同样支持插值 -->
-            <link href="/users/{{ user.id }}/edit">编辑当前用户</link>
-            <link href="https://example.com/docs" target="_blank">在新窗口打开文档</link>
+            <!-- link: href is required, the element text is the link label;
+                 target is optional; attribute values support interpolation too -->
+            <link href="/users/{{ user.id }}/edit">Edit current user</link>
+            <link href="https://example.com/docs" target="_blank">Open the docs in a new window</link>
 
             <!-- ======================================================
-                 2. if —— 条件显示
-                 when 必填；<then> 必填，<else> 可选；! 前缀取反
+                 2. if —— conditional display
+                 when is required; <then> is required, <else> optional; a !
+                 prefix negates
                  ====================================================== -->
 
-            <heading level="2">2. 条件显示</heading>
+            <heading level="2">2. Conditional display</heading>
 
             <if when="user.loggedIn">
                 <then>
-                    <text>欢迎回来，{{ user.name }}。</text>
+                    <text>Welcome back, {{ user.name }}.</text>
                 </then>
                 <else>
-                    <text>请先登录。</text>
+                    <text>Please log in first.</text>
                 </else>
             </if>
 
-            <!-- 取反：XML 属性中的 ! 无需转义 -->
+            <!-- Negation: no escaping needed for ! in XML attributes -->
             <if when="!user.hidden">
                 <then>
-                    <text>该用户资料对访客可见。</text>
+                    <text>This user's profile is visible to visitors.</text>
                 </then>
             </if>
 
-            <!-- 多段路径同样可作条件：form.errors.email → $form['errors']['email'] -->
+            <!-- Multi-segment paths work as conditions too:
+                 form.errors.email -> $form['errors']['email'] -->
             <if when="form.errors.email">
                 <then>
-                    <text>邮箱错误：{{ form.errors.email }}</text>
+                    <text>Email error: {{ form.errors.email }}</text>
                 </then>
             </if>
 
             <!-- ======================================================
-                 3. each —— 循环列表
-                 items 必填；<body> 必填；as 默认 item；index 可选
+                 3. each —— looping over a list
+                 items is required; <body> is required; as defaults to item;
+                 index is optional
                  ====================================================== -->
 
-            <heading level="2">3. 循环列表</heading>
+            <heading level="2">3. Loops</heading>
 
-            <!-- 带索引变量：index 拿到的是数组键（0 起），{{ i }} 即 $i -->
+            <!-- Index variable: index yields the array key (0-based),
+                 and {{ i }} is $i -->
             <each items="users" as="member" index="i">
                 <body>
-                    <text>{{ i }}. {{ member.name }}（{{ member.email }}）</text>
+                    <text>{{ i }}. {{ member.name }} ({{ member.email }})</text>
                 </body>
             </each>
 
-            <!-- 嵌套 each：内层 items 可引用外层变量，如 group.members -->
+            <!-- Nested each: the inner items may reference an outer variable,
+                 e.g. group.members -->
             <each items="groups" as="group">
                 <body>
                     <heading level="4">{{ group.name }}</heading>
@@ -111,157 +124,175 @@
                 </body>
             </each>
 
-            <!-- 循环体里同样可以写 if -->
+            <!-- if works inside a loop body too -->
             <each items="users" as="member">
                 <body>
                     <if when="member.active">
                         <then>
-                            <text>{{ member.name }} 已启用</text>
+                            <text>{{ member.name }} is enabled</text>
                         </then>
                         <else>
-                            <text>{{ member.name }} 已停用</text>
+                            <text>{{ member.name }} is disabled</text>
                         </else>
                     </if>
                 </body>
             </each>
 
             <!-- ======================================================
-                 4. table —— 表格
-                 items 必填；<columns> 必填；as 默认 row；empty 可选
-                 列：label 必填，pop 与 <content> 二选一
+                 4. table —— tables
+                 items is required; <columns> is required; as defaults to row;
+                 empty is optional. Columns: label is required, and pop and
+                 <content> are mutually exclusive
                  ====================================================== -->
 
-            <heading level="2">4. 表格</heading>
+            <heading level="2">4. Tables</heading>
 
-            <table items="users" as="row" empty="暂无数据">
+            <table items="users" as="row" empty="No data">
                 <columns>
-                    <!-- pop：服务端把数据渲染进单元格，写成 {{ row.字段 }} -->
+                    <!-- pop: the server renders data into the cell,
+                         written as {{ row.field }} -->
                     <column label="ID" pop="{{ row.id }}"/>
-                    <column label="姓名" pop="{{ row.name }}"/>
-                    <column label="邮箱" pop="{{ row.email }}"/>
-                    <!-- content：行变量作用域内的节点树，可引用 row.* -->
-                    <column label="操作">
+                    <column label="Name" pop="{{ row.name }}"/>
+                    <column label="Email" pop="{{ row.email }}"/>
+                    <!-- content: a node tree in the row's scope, may reference
+                         row.* -->
+                    <column label="Actions">
                         <content>
-                            <link href="/users/{{ row.id }}/edit">编辑</link>
+                            <link href="/users/{{ row.id }}/edit">Edit</link>
                         </content>
                     </column>
                 </columns>
             </table>
 
             <!-- ======================================================
-                 5. form + field —— 表单
-                 action 必填；method 默认 post；<fields> 必填
-                 input：text / password / email / number / textarea
+                 5. form + field —— forms
+                 action is required; method defaults to post; <fields> is
+                 required. input: text / password / email / number / textarea
                         / select / checkbox / hidden / submit
                  ====================================================== -->
 
-            <heading level="2">5. 表单</heading>
+            <heading level="2">5. Forms</heading>
 
             <form action="/users/save" method="post">
                 <fields>
-                    <!-- value 绑定路径，required 为布尔，placeholder 仅单行输入框 -->
-                    <field name="name" label="姓名" input="text" value="user.name"
-                           required="true" placeholder="请输入姓名"/>
-                    <field name="password" label="密码" input="password" required="true"/>
-                    <field name="email" label="邮箱" input="email" value="user.email"/>
-                    <field name="age" label="年龄" input="number" value="user.age"/>
+                    <!-- value binds a path, required is a boolean, placeholder
+                         is for single-line inputs only -->
+                    <field name="name" label="Name" input="text" value="user.name"
+                           required="true" placeholder="Enter name"/>
+                    <field name="password" label="Password" input="password" required="true"/>
+                    <field name="email" label="Email" input="email" value="user.email"/>
+                    <field name="age" label="Age" input="number" value="user.age"/>
 
-                    <!-- textarea：rows 默认 4 -->
-                    <field name="bio" label="简介" input="textarea" rows="6" value="user.bio"/>
+                    <!-- textarea: rows defaults to 4 -->
+                    <field name="bio" label="About" input="textarea" rows="6" value="user.bio"/>
 
-                    <!-- select：必须提供 <options>，且不接受 value 绑定 -->
-                    <field name="role" label="角色" input="select">
+                    <!-- select: <options> is required, and value binding is not
+                         accepted -->
+                    <field name="role" label="Role" input="select">
                         <options>
-                            <option value="admin">管理员</option>
-                            <option value="editor">编辑</option>
-                            <option value="user">普通用户</option>
+                            <option value="admin">Admin</option>
+                            <option value="editor">Editor</option>
+                            <option value="user">Standard user</option>
                         </options>
                     </field>
 
-                    <!-- checkbox：checked 绑定路径，真值时输出 checked -->
-                    <field name="active" label="启用" input="checkbox" checked="user.active"/>
+                    <!-- checkbox: checked binds a path; a truthy value emits
+                         checked -->
+                    <field name="active" label="Enabled" input="checkbox" checked="user.active"/>
 
-                    <!-- hidden：不渲染 label -->
-                    <field name="csrf" label="CSRF 令牌" input="hidden" value="form.csrf"/>
+                    <!-- hidden: no label is rendered -->
+                    <field name="csrf" label="CSRF token" input="hidden" value="form.csrf"/>
 
-                    <!-- submit：label 即按钮文字 -->
-                    <field name="submit" label="保存" input="submit"/>
+                    <!-- submit: the label is the button text -->
+                    <field name="submit" label="Save" input="submit"/>
                 </fields>
             </form>
 
-            <!-- method 可省略（默认 post），也可显式指定为 get -->
+            <!-- method may be omitted (defaults to post), or set explicitly to
+                 get -->
             <form action="/users/search" method="get">
                 <fields>
-                    <field name="q" label="关键词" input="text" placeholder="姓名或邮箱"/>
-                    <field name="go" label="搜索" input="submit"/>
+                    <field name="q" label="Keyword" input="text" placeholder="Name or email"/>
+                    <field name="go" label="Search" input="submit"/>
                 </fields>
             </form>
 
             <!-- ======================================================
-                 6. component —— 组件
-                 name 必填；<data> 可选，子元素名即数据键，值支持插值
+                 6. component —— components
+                 name is required; <data> is optional, its child element names
+                 are the data keys, and values support interpolation
                  ====================================================== -->
 
-            <heading level="2">6. 组件</heading>
+            <heading level="2">6. Components</heading>
 
-            <!-- 无 data：仅传组件名 -->
+            <!-- No data: only the component name is passed -->
             <component name="badge"/>
 
-            <!-- card：title / body（body 按原文输出，可含 HTML） -->
+            <!-- card: title / body (body is emitted as written and may contain
+                 HTML) -->
             <component name="card">
                 <data>
-                    <title>卡片标题</title>
-                    <body><![CDATA[卡片正文，可含 <em>HTML</em> 片段。]]></body>
+                    <title>Card title</title>
+                    <body><![CDATA[Card body, may contain <em>HTML</em> fragments.]]></body>
                 </data>
             </component>
 
-            <!-- button：text / href（可省略，省略时渲染 <button>）/ type -->
+            <!-- button: text / href (optional; a <button> is rendered when it
+                 is omitted) / type -->
             <component name="button">
                 <data>
-                    <text>编辑 {{ user.name }}</text>
+                    <text>Edit {{ user.name }}</text>
                     <href>/users/{{ user.id }}/edit</href>
                     <type>primary</type>
                 </data>
             </component>
 
-            <!-- alert：type（info/success/warning/danger，默认 info）/ text -->
+            <!-- alert: type (info/success/warning/danger, default info) / text -->
             <component name="alert">
                 <data>
                     <type>warning</type>
-                    <text>账户将于 {{ user.daysLeft }} 天后过期。</text>
+                    <text>Your account expires in {{ user.daysLeft }} days.</text>
                 </data>
             </component>
 
-            <!-- data 值支持插值；转义由组件模板决定（这里是 alert 的 e()） -->
+            <!-- data values support interpolation; escaping is decided by the
+                 component template (here alert's e()) -->
             <component name="alert">
                 <data>
                     <type>success</type>
-                    <text>已保存 {{ user.messageCount }} 项设置。</text>
+                    <text>Saved {{ user.messageCount }} settings.</text>
                 </data>
             </component>
 
-            <!-- my-card：本示例自带的自定义组件，文件在 examples/components/my-card.php，
-                 与内置组件的区别只是它不在包内分发。见文件末尾「附：自定义组件」 -->
+            <!-- my-card: a custom component shipped with this example, its file
+                 is examples/components/my-card.php. The only difference from a
+                 built-in component is that it is not distributed inside the
+                 package. See the "Custom components" appendix at the end. -->
             <component name="my-card">
                 <data>
-                    <title>自定义组件 · {{ user.name }}</title>
-                    <body><![CDATA[body 由组件模板用 raw() 输出，故这里可以写 <em>HTML</em> 片段。]]></body>
+                    <title>Custom component · {{ user.name }}</title>
+                    <body><![CDATA[The body is emitted by the component template with raw(), so <em>HTML</em> fragments can go here.]]></body>
                 </data>
             </component>
 
             <!-- ======================================================
-                 7. el / 属性透传 / attr —— 前端框架集成
-                 <el> 是通用容器；框架指令原样输出到标签；
-                 XML 拼不出的名字（@ 开头）用 <attr>
+                 7. el / attribute passthrough / attr —— front-end
+                    framework integration
+                 <el> is a generic container; framework directives are emitted
+                 verbatim onto the tag; names XML cannot spell (@-prefixed) use
+                 <attr>
                  ====================================================== -->
 
-            <heading level="2">7. 前端框架集成</heading>
+            <heading level="2">7. Front-end framework integration</heading>
 
-            <!-- 透传属性：带冒号的指令名、x- / v- / hx- / data- 前缀、class/id/style -->
+            <!-- Passthrough attributes: directive names with a colon, the
+                 x- / v- / hx- / data- prefixes, and class/id/style -->
             <el tag="ul" class="list" data-controller="menu">
                 <each items="users" as="member">
                     <body>
-                        <!-- 透传值里同样支持插值：先转义字面部分，再代入路径 -->
+                        <!-- Passthrough values support interpolation too: the
+                             literal part is escaped first, then the path is
+                             substituted -->
                         <el tag="li" data-id="{{ member.id }}" x-on:click="select($el)">
                             <text>{{ member.name }}</text>
                         </el>
@@ -269,25 +300,27 @@
                 </each>
             </el>
 
-            <!-- __event 是 @event 的可读写法：XML 属性名不能含 @ -->
+            <!-- __event is the readable spelling of @event: XML attribute
+                 names cannot contain '@' -->
             <el tag="div" x-data="{ open: false }" class="panel" __click="open = ! open">
                 <attr name=":class" value="open &amp;&amp; 'open'"/>
-                <text>点击切换</text>
+                <text>Click to toggle</text>
             </el>
 
-            <!-- 映射覆盖不到的名字（或需要字面 __xxx）用 <attr>，name 原样输出 -->
+            <!-- Names the mapping does not cover (or a literal __xxx that must
+                 be kept) use <attr>; the name is emitted verbatim -->
             <el tag="span" class="tag">
                 <attr name="@mouseenter" value="hover = true"/>
                 <attr name="__literal" value="untouched"/>
-                <text>悬停</text>
+                <text>Hover</text>
             </el>
 
-            <!-- 表单字段与链接同样接受透传属性 -->
+            <!-- Form fields and links accept passthrough attributes too -->
             <form action="/users/search" method="get" class="search" x-on:submit.prevent="submit()">
                 <fields>
-                    <field name="q" label="关键词" input="text" placeholder="姓名或邮箱"
+                    <field name="q" label="Keyword" input="text" placeholder="Name or email"
                            x-model.debounce.500ms="kw"/>
-                    <field name="go" label="搜索" input="submit"/>
+                    <field name="go" label="Search" input="submit"/>
                 </fields>
             </form>
 
@@ -297,18 +330,19 @@
 
 <!--
   ==================================================================
-  附：无 layout 的独立页面模式
+  Appendix: the standalone (layout-less) page form
   ==================================================================
 
-  layout 与 body 互斥：不写 layout 时，页面内容直接放在 <body> 下。
-  此时 <page> 的 title 属性会被忽略（并给出警告），因为独立页面没有
-  可供注入 title section 的布局。
+  layout and body are mutually exclusive: without a layout, the page content
+  lives directly under <body>. The <page> title attribute is then ignored (with
+  a warning), because a standalone page has no layout to inject a title section
+  into.
 
       <?xml version="1.0" encoding="UTF-8"?>
       <page>
           <body>
-              <heading level="2">独立页面</heading>
-              <text>你好，{{ user.name }}。</text>
+              <heading level="2">Standalone page</heading>
+              <text>Hello, {{ user.name }}.</text>
               <each items="users" as="user">
                   <body>
                       <text>{{ user.name }}</text>
@@ -319,17 +353,19 @@
 
 
   ==================================================================
-  附：自定义组件
+  Appendix: custom components
   ==================================================================
 
-  上面第 6 节的 my-card 就是一个自定义组件：文件是 examples/components/my-card.php，
-  页面里用 name="my-card" 引用即可，无需注册——只要它所在目录已经 addPath 进
-  模板搜索路径。
+  my-card in section 6 above is a custom component: its file is
+  examples/components/my-card.php, referenced in the page with name="my-card".
+  No registration is needed — just add its directory to the template search
+  path.
 
-  自己写一个组件，三步：
+  Writing your own component takes three steps:
 
-  1) 写组件文件。组件就是普通的 miGears Template 文件（.php 或 .tpl.php 均可；
-     .tpl.php 里 ## $x ## 是转义输出、### $x ### 才是原样输出，且会多一份编译缓存产物）：
+  1) Write the component file. A component is an ordinary miGears Template file
+     (.php or .tpl.php). In .tpl.php, ## $x ## is escaped output and
+     ### $x ### is literal output (and produces an extra compiled cache file):
 
       // components/my-card.php
       <div class="my-card">
@@ -337,27 +373,34 @@
           <div><?= $this->raw((string) ($body ?? '')) ?></div>
       </div>
 
-  2) 让它的目录可被找到。后 addPath 的目录先被搜索，所以把同名文件放进后注册的
-     目录即可覆盖内置组件（主题覆盖）：
+  2) Make its directory findable. Directories added later are searched first,
+     so dropping a same-named file into a later-registered directory overrides
+     a built-in component (theme overriding):
 
       $tpl->addPath(__DIR__ . '/components');
 
-  3) 在页面里按名引用：
+  3) Reference it by name in the page:
 
       <component name="my-card">
           <data>
               <title>{{ user.name }}</title>
-              <body><![CDATA[正文，可含 <em>HTML</em>。]]></body>
+              <body><![CDATA[Body text, may contain <em>HTML</em>.]]></body>
           </data>
       </component>
 
-  要点：
-    · 名字 = 相对某个已注册路径的路径，所以子目录可以直接用：name="admin/table"
-      命中 <path>/admin/table.php。同一份文件换个基准路径就换个名字：注册了
-      components/ 目录时它叫 card，注册包根时它叫 components/card。
-    · data 的键在组件内成为局部变量，值只能是字符串；页面的其它变量不会透传进组件。
-    · data 的值以未转义形式送达，转义与否由组件模板决定：文本用 $this->e()，
-      信任的 HTML 用 $this->raw()。页面侧预转义会叠成双重转义。
-    · <component> 自身不输出标签，挂不上 class 等属性；需要外层属性时用 <el> 包裹。
-    · 组件缺失不会在编译期报错，渲染时才抛 Component not found: <name>。
+  Key points:
+    · The name is a path relative to some registered path, so subdirectories
+      work directly: name="admin/table" hits <path>/admin/table.php. The same
+      file gets a different name under a different base path: registering the
+      components/ directory makes it card; registering the package root makes
+      it components/card.
+    · Each data key becomes a local variable inside the component; values are
+      strings only, and the page's other variables do not leak in.
+    · Data values arrive unescaped; whether they are escaped depends on the
+      component template: use $this->e() for text and $this->raw() for trusted
+      HTML. Pre-escaping on the page side would double-escape.
+    · <component> itself emits no tag, so it cannot carry class and other
+      attributes; wrap it in <el> when outer attributes are needed.
+    · A missing component is not an error at compile time — it only throws a
+      Component not found: <name> exception at render time.
 -->
