@@ -127,7 +127,7 @@ xml-pages 是 miGears 框架的可选配套模块：一种基于 XML 的声明�
    - `__event`——`@event` 的可读写法（见下）
    - 带冒号的框架指令名：`x-on:click`、`x-bind:href`、`v-on:click`、`wire:click`、`on:click`、`:href` 等
    - 前缀：`x-`、`v-`、`hx-`、`data-`
-   - 常用 HTML 钩子：`class`、`id`、`style`
+   - 常用 HTML 钩子：`class`、`id`、`style`，以及 `bind`（前端框架的绑定属性，值是浏览器端变量名）
 3. **其余一律编译错误**——未知属性视为拼写错误，绝不静默丢弃（旧行为会静默吞掉指令，是最危险的失败模式）。
 
 不输出标签的节点（`text`、`if`、`each`、`component`）不接受透传属性，需用 `el` 包裹。
@@ -385,8 +385,8 @@ body/sections 中的每个元素都是一个节点，**元素名即类型**。�
 ```xml
 <table items="users" as="user" empty="暂无数据">
   <columns>
-    <column label="ID" bind="id"/>
-    <column label="姓名" bind="name"/>
+    <column label="ID" pop="{{ user.id }}"/>
+    <column label="姓名" pop="{{ user.name }}"/>
     <column label="操作">
       <content>
         <link href="/users/{{ user.id }}/edit">编辑</link>
@@ -396,7 +396,7 @@ body/sections 中的每个元素都是一个节点，**元素名即类型**。�
 </table>
 ```
 
-`items` 属性必填，`as` 默认 `row`，`empty` 可选（空列表提示），`<columns>` 必填。**column**：`label` 属性必填；`bind`（相对行变量的路径）与 `<content>`（节点树，行变量作用域）二选一必填，同时提供即编译错误。
+`items` 属性必填，`as` 默认 `row`，`empty` 可选（空列表提示），`<columns>` 必填。**column**：`label` 属性必填；`pop`（服务端渲染进单元格的数据引用，写成 `{{ row.id }}`）与 `<content>`（节点树，行变量作用域）二选一必填，同时提供即编译错误。`pop` 必须带 `{{ }}` 且首段等于该表格的 `as` 变量。
 
 `<column>` 同样不必写 `type` 属性；若写出，值必须是 `column`，否则编译错误。`label` 与 `empty` 是字面量文本，不支持 `{{ }}` 插值。
 
@@ -520,8 +520,9 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 | 布尔属性拼写错误 | `required` 的值不在真假词表与两种「存在」写法之内 | required 的值 "maybe" 不是布尔；真值可用 true / 1 / yes / on / required / 空值，假值可用 false / 0 / no / off |
 | 整数属性拼写错误 | `level` / `rows` 的值不是十进制整数 | level 的值 "two" 不是整数；请写十进制数字（如 2） |
 | 路径错误 | 插值/路径文法不匹配 | 非法路径 "user..name" |
-| 上下文错误 | bind/content 互斥等 | column 同时含 bind 与 content |
+| 上下文错误 | pop/content 互斥等 | column 同时含 pop 与 content；pop 未引用行变量 |
 | 字面量错误 | 字面量字段写了 `{{ }}` | "empty" 是字面量字段，不支持 {{ }} 插值 |
+| 模板层标记 | 字面量字段（`label` / `name` / `tag` / `empty` / option 等）里出现 `##`——这些字段原样写入产物，没有可转义的位置 | body[0].fields[0]: "label" 是字面量，不允许出现 "##"（模板层语法） |
 | 内嵌结构类型错误 | field/column 的 type 与元素名不符 | type 必须是 "field" |
 | 未知属性 | 属性既非该节点的 DSL 字段，也不在透传白名单 | 未知属性 "levl" |
 | 连字符指令名 | `x-on-*` / `x-bind-*` / `x-transition-*`（Alpine 只有冒号形式） | 请写 "x-on:click" 或 "__click" |
@@ -590,13 +591,14 @@ composer 依赖说明：运行期实际执行的是生成的模板与内置组�
 | 布尔属性 | required 真值词表与假值词表（大小写不敏感）、`required=""` 与 `required="required"` 视为真、未知拼写报错并列出可用值 |
 | 整数属性 | level / rows 的十进制写法可用、非数字报语法错误、越界仍由共享层报范围错误 |
 | 路径下标 | fields / columns / sections / options 的错误路径使用位置下标（`fields[0]`，不是 `fields[field]`） |
-| 表格 | bind 列 / content 列 / empty / as 默认与自定义 / bind+content 同存报错 / columns 缺失报错 |
+| 表格 | pop 列（`{{ row.x }}`）/ content 列 / empty / as 默认与自定义 / pop+content 同存报错 / columns 缺失报错 |
 | 布局 | layout+sections / body 独立 / 两者同存报错 / 双缺失报错 / title section / section 缺 name 报错 |
 | 组件 | 无 data / data 插值（PHP 上下文拼接）/ data 字面量 |
 | 绑定 | 路径文法边界（非法字符、空段、`!` 只允许 when） |
 | 取反边界 | `each.items` 带 `!` 报错（`!` 只属于 `if.when`） |
 | 内嵌结构 | `<field type="field">` 可通过，`<field type="column">` 报错 |
 | 字面量 | `label`、`empty`、`<option>` 等字面量字段写 `{{ }}` 报错 |
+| 模板层标记 | 文本里出现 `##` 时按模板层语法转义（产物含 `\##`）；单个 `#` 不需转义（共享层，前端侧同样可达） |
 | 解析 | XML 语法错误报错、根元素非 `<page>` 报错 |
 | 透传 | Alpine / Vue / htmx / Livewire / Stimulus 指令与 `class`/`id`/`style` 透传；值转义；值内插值；单引号保持可读 |
 | `__event` | `__click` → `@click`；带修饰符（`__keydown.escape.window`）；无标签节点上报错；与 `<attr name="@click">` 重复报错 |

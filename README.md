@@ -13,7 +13,7 @@ Sister package of `migears/yaml-pages`: the same declarative DSL expressed in XM
 - Declares page structure, data binding, conditionals (`if`), loops (`each`), form fields, table columns and layout inheritance
 - `{{ path }}` interpolation with auto-escaping — XSS protection inherited from the template engine
 - Compile-time validation of structure, fields, paths and attributes — nothing is silently dropped
-- **Attribute passthrough** for front-end frameworks: `x-on:click`, `v-bind:href`, `wire:click`, `hx-get`, `data-*`, `class`/`id`/`style` are forwarded verbatim to the emitted tag
+- **Attribute passthrough** for front-end frameworks: `x-on:click`, `v-bind:href`, `wire:click`, `hx-get`, `data-*`, `class`/`id`/`style` are forwarded verbatim to the emitted tag, plus `bind` for the framework's own binding
 - Generic `<el tag="...">` container, so wrapper attributes (Alpine's `x-data`) have somewhere to live
 - Built-in components (`card`, `button`, `alert`, `badge`) plus custom components written per miGears Template conventions
 - Deliberately out of scope: business logic, event handling, state management, routing, runtime XML parsing — those belong to the front-end framework you pair it with
@@ -60,8 +60,8 @@ Write a page declaration `views/pages/users.page.xml`:
             <heading level="2">用户列表</heading>
             <table items="users" as="user" empty="暂无数据">
                 <columns>
-                    <column label="ID" bind="id"/>
-                    <column label="姓名" bind="name"/>
+                    <column label="ID" pop="{{ user.id }}"/>
+                    <column label="姓名" pop="{{ user.name }}"/>
                     <column label="操作">
                         <content>
                             <link href="/users/{{ user.id }}/edit">编辑</link>
@@ -288,7 +288,7 @@ Fields support these inputs: `text` (default), `password`, `email`, `number`, `t
 | `<columns>` | yes | `<column>` elements |
 | `empty` | no | Text shown for an empty list |
 
-Columns: `label` required; exactly one of `bind` (path relative to the row variable, e.g. `id` → `row.id`) or `<content>` (node tree in row scope).
+Columns: `label` required; exactly one of `pop` (a data reference in braces, e.g. `{{ user.id }}` — the leading variable must be the table's `as`) or `<content>` (node tree in row scope). A field's `id` defaults to its `name`; `bind` names the front-end variable the framework binds to.
 
 ### component
 
@@ -381,7 +381,7 @@ php bin/xml-pages --help
 Compile errors throw `MiGears\XmlPages\Exception\CompileException` with a node path, e.g.:
 
 ```
-views/pages/users.page.xml: sections.content[2].columns[2]: 列同时指定 bind 与 content
+views/pages/users.page.xml: sections.content[2].columns[2]: 列同时指定 pop 与 content
 ```
 
 The CLI prints errors to stderr with the file name; directory mode keeps going on failure.
@@ -421,7 +421,7 @@ MIT
 - 声明页面结构、数据绑定、条件显示（`if`）、循环列表（`each`）、表单字段、表格列与 layout 继承
 - `{{ path }}` 插值自动转义 —— XSS 防护由模板引擎承担
 - 编译期校验结构、字段、路径与属性，**不静默丢弃任何东西**
-- **属性透传**：`x-on:click`、`v-bind:href`、`wire:click`、`hx-get`、`data-*`、`class`/`id`/`style` 原样输出到生成的标签
+- **属性透传**：`x-on:click`、`v-bind:href`、`wire:click`、`hx-get`、`data-*`、`class`/`id`/`style` 原样输出到生成的标签；`bind` 用于前端框架自己的绑定
 - 通用容器 `<el tag="...">`，给 `x-data` 这类包裹层属性一个落点
 - 内置组件（`card`、`button`、`alert`、`badge`），自定义组件按 miGears Template 规范编写
 - 明确不做：业务逻辑、事件处理、状态管理、路由、运行期解析 XML —— 这些交给你搭配的前端框架
@@ -468,8 +468,8 @@ $tpl->addPath('vendor/migears/xml-pages/components');
             <heading level="2">用户列表</heading>
             <table items="users" as="user" empty="暂无数据">
                 <columns>
-                    <column label="ID" bind="id"/>
-                    <column label="姓名" bind="name"/>
+                    <column label="ID" pop="{{ user.id }}"/>
+                    <column label="姓名" pop="{{ user.name }}"/>
                     <column label="操作">
                         <content>
                             <link href="/users/{{ user.id }}/edit">编辑</link>
@@ -696,7 +696,7 @@ XML 属性名不能含 `@`，所以 `@click` 根本写不出来。以 `__` 开�
 | `<columns>` | 是 | `<column>` 元素 |
 | `empty` | 否 | 空列表时显示的文本 |
 
-列：`label` 必填；`bind`（相对行变量的路径，如 `id` → `row.id`）与 `<content>`（行变量作用域内的节点树）二选一。
+列：`label` 必填；`pop`（花括号形式的数据引用，如 `{{ user.id }}`，首段必须是该表格的 `as`）与 `<content>`（行变量作用域内的节点树）二选一。字段的 `id` 默认等于 `name`；`bind` 是前端框架绑定的变量名。
 
 ### component
 
@@ -789,7 +789,7 @@ php bin/xml-pages --help
 编译错误抛出 `MiGears\XmlPages\Exception\CompileException`，信息带节点路径，例如：
 
 ```
-views/pages/users.page.xml: sections.content[2].columns[2]: 列同时指定 bind 与 content
+views/pages/users.page.xml: sections.content[2].columns[2]: 列同时指定 pop 与 content
 ```
 
 CLI 将错误输出到 stderr 并附文件名；目录模式继续处理其余文件。
