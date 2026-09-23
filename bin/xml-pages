@@ -47,6 +47,13 @@ foreach (array_slice($argv, 1) as $arg) {
         $check = true;
         continue;
     }
+    if (str_starts_with($arg, '-')) {
+        // An unrecognised option used to fall through to the positional list,
+        // where a mistyped --check became the *output directory* — the dry run
+        // turned into a real write into a directory named "--chck".
+        fwrite(STDERR, "unknown option: {$arg}\n");
+        usage(1);
+    }
     $rest[] = $arg;
 }
 

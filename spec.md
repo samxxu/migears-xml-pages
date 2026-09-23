@@ -505,8 +505,9 @@ Behavior conventions:
 
 - Output file name: `users.page.xml` → `users.tpl.php`
 - Existing artifacts are overwritten unconditionally (derived-file semantics)
-- When processing a directory, reports per file `编译: <source> → <target>`; a failure does not interrupt the other files
+- When processing a directory, reports per file `compiled: <source> -> <target>`; a failure does not interrupt the other files
 - Exit code: 0 if all succeed; 1 if any fails
+- An unrecognised `-`/`--option` is an error: it never falls through to the positional arguments, where a mistyped `--check` would silently become the output directory and turn a dry run into a real write
 
 ## 9. Error Handling
 
@@ -623,7 +624,7 @@ Regression tests of the shared compilation layer (node grammar, interpolation, p
 | bare text in a container | bare text and CDATA in `el` / `then` / `else` / `body` / `content` / `section` / `sections` / `fields` / `columns` / `data` all error; indentation whitespace and leaf-node text unaffected |
 | parsing hints | failed parse from `@click` attaches a `__click` hint; email addresses in text do not trigger the hint |
 | escaping contract | component data interpolation is escaped exactly once (render cascade test, asserts no `&amp;lt;`) |
-| CLI | single-file compile / directory recursion / output-dir / --check / --help / failure exit code |
+| CLI | single-file compile / directory recursion / output-dir / --check / --help / unknown option rejected / failure exit code |
 | integration | the compiled artifact renders successfully after TemplateCompiler's second compilation (tested against migears/template) |
 | copy consistency | built-in components byte-identical to `migears/yaml-pages` (checked on same-repo checkout, skipped on standalone install) |
 
@@ -1146,6 +1147,7 @@ php bin/xml-pages --help
 - 已存在的产物无条件覆盖（派生文件语义）
 - 处理目录时逐文件报告 `编译: <source> → <target>`，失败不中断其他文件
 - 退出码：全部成功 0；任一失败 1
+- 未识别的 `-`/`--option` 一律报错：它不会落到位置参数上——否则拼错的 `--check` 会被静默当成输出目录，把干跑变成真实写盘
 
 ## 9. 错误处理
 
@@ -1262,7 +1264,7 @@ composer 依赖说明：运行期实际执行的是生成的模板与内置组�
 | 容器内裸文本 | `el` / `then` / `else` / `body` / `content` / `section` / `sections` / `fields` / `columns` / `data` 里的裸文本与 CDATA 一律报错；缩进空白与叶子节点文本不受影响 |
 | 解析提示 | `@click` 导致解析失败时附 `__click` 提示；文本中的邮箱不触发提示 |
 | 转义契约 | 组件 data 插值恰好转义一次（渲染级联测，断言无 `&amp;lt;`） |
-| CLI | 单文件编译 / 目录递归 / output-dir / --check / --help / 失败退出码 |
+| CLI | 单文件编译 / 目录递归 / output-dir / --check / --help / 未识别选项被拒 / 失败退出码 |
 | 集成 | 编译产物经 TemplateCompiler 二次编译后渲染成功（与 migears/template 联测） |
 | 副本一致性 | 内置组件与 `migears/yaml-pages` 逐字相同（同仓检出时校验，独立安装时跳过） |
 
