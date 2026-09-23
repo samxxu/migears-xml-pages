@@ -89,6 +89,8 @@ Rules: when `layout` is present, `sections` is required and `body` is forbidden;
 
 A `<section>` must have a `name` attribute; its children form the node-tree array. When the `title` attribute is present, a `title` section is generated automatically (only effective with `layout`; ignored with a warning when there is no `layout`).
 
+A section's `name` must be unique within the page: the section map is keyed by name, so a repeat would silently collapse two sections into one, and a duplicate is therefore a compile error (`is defined more than once; a section name may only appear once`). Surrounding whitespace around the name is trimmed like every other text field (a stray space would never match the layout section it is meant to fill); a name that trims to empty counts as the attribute being absent and errors the same way as a missing `name`.
+
 ### 4.2 XML writing notes
 
 The parsing layer is libxml (PHP's built-in SimpleXML). Correspondences to the node model:
@@ -97,6 +99,7 @@ The parsing layer is libxml (PHP's built-in SimpleXML). Correspondences to the n
 - **Fields go in attributes**: e.g. `<heading level="2">`, `<link href="..." target="_blank">`, `<if when="...">`.
 - **Text content goes in the element text**: the element text of `<text>`, `<heading>`, `<link>` is the `text` field; leading/trailing whitespace is trimmed.
 - **Container children**: `<if>`'s children are `<then>`/`<else>`; `<each>`'s is `<body>`; `<form>`'s is `<fields>` (containing `<field>`); `<table>`'s is `<columns>` (containing `<column>`); `<field>`'s is `<options>` (containing `<option value="...">`); `<column>`'s is `<content>`; `<component>`'s is `<data>` (child element names are the data keys).
+- **A container child may appear at most once**: `<sections>` / `<body>` / `<then>` / `<else>` / `<fields>` / `<columns>` / `<data>` / `<options>` / `<content>` are singular by definition, and SimpleXML's `isset($el->body)` answers about the first match only — a second one was dropped with the page still compiling. A repeat is therefore a compile error (`<body> is defined more than once; a container element may only appear once`).
 
 Escaping and special characters:
 
@@ -132,6 +135,8 @@ Attributes on a node are handled in three categories:
 
 Nodes that emit no tag (`text`, `if`, `each`, `component`) do not accept forwarded attributes; wrap them in `el`.
 
+**Wrapper elements** (`sections` / `body` / `then` / `else` / `fields` / `columns` / `data` / `options` / `content`) emit no tag either, so there is nothing for an attribute to attach to and they accept **no** attributes at all; any attribute on one is a compile error (`unknown attribute "class" on <section>`). The only wrapper spellings that mean something are whitelisted element by element: `<section>` takes only `name`, `<option>` only `value`, and `<attr>` only `name` / `value`. Everything else is treated as a typo, because a wrapper attribute used to vanish without a trace.
+
 Forwarded-attribute values are HTML-attribute-escaped first (`ENT_COMPAT`, keeping single quotes readable), then `{{ }}`-interpolated — the order must not be reversed, otherwise the quotes inside the `## ##` sugar syntax would be broken by escaping.
 
 **`__event` → `@event`**: XML does not allow `@` in attribute names (not a legal NameStartChar), so `@click` cannot be written directly. Attribute names starting with `__` are mapped positionally — `__` becomes `@`, the rest is copied verbatim:
@@ -152,6 +157,8 @@ body[0]: 未知属性 "x-on-click"；Alpine 的事件/绑定指令用冒号形�
 ```
 
 XML is stricter than HTML about attribute names: `:` is a reserved namespace separator, but libxml only warns and still keeps the attribute, so the colon forms in the table above work; the only thing truly unwritable is a leading `@`.
+
+Attributes are read through DOM rather than SimpleXML's `attributes()`, which returns unprefixed names only, so a namespaced name such as `xml:lang` is no longer silently ignored: on a wrapper element it is refused like any other unknown attribute, and on a node that emits a tag it is forwarded verbatim under the same "a name containing a colon is passed through" rule as the directives above.
 
 ### 4.4 `<attr>` explicit attributes
 
@@ -178,6 +185,7 @@ Compiles to:
 |------|------|
 | Allowed placement | child of a node that emits a tag: `el` / `heading` / `link` / `form` / `table` / `field` / `column` |
 | `name` | required, any legal HTML attribute name (including `@`), **emitted verbatim, no `__` mapping** |
+| `name` legality | since the name is emitted exactly as written, it may not contain whitespace, quotes, `<`, `>`, `/` or `=`; anything else is a compile error (`is not a legal attribute name`) |
 | `value` | required, supports `{{ }}` interpolation |
 | Duplicate | conflicts with an existing attribute of the same name is a compile error |
 | Field collision | colliding with the node's own DSL field is a compile error (e.g. `<attr name="href">` on a `<link>`) |
@@ -359,7 +367,7 @@ Nested each is allowed; an inner `as` with the same name naturally shadows per P
 | `checked` | path | checkbox only | emits the `checked` attribute when truthy; elsewhere a compile error |
 | `rows` | int | textarea only | default 4; elsewhere a compile error |
 
-`input` enum: `text`, `password`, `email`, `number`, `textarea`, `select`, `checkbox`, `hidden`, `submit`. An invalid enum is a compile error. A `select` without `options`, `options` used on an input that does not support it, `value` used on a `select`, and an `<option>` without a `value` attribute are all compile errors.
+`input` enum: `text`, `password`, `email`, `number`, `textarea`, `select`, `checkbox`, `hidden`, `submit`. An invalid enum is a compile error. A `select` without `options`, `options` used on an input that does not support it, `value` used on a `select`, and an `<option>` without a `value` attribute are all compile errors. The options are keyed by `value`, so a repeated `<option value="...">` would collapse two entries into one with the first silently gone; a duplicate `value` is therefore a compile error (`an option value may only appear once`).
 
 A field's **usage scope** is likewise a hard constraint, and going out of range is a compile error (these fields used to be silently dropped): `placeholder` is text/password/email/number only, `checked` is checkbox only, `rows` is textarea only, `value` does not support submit, `required` is text/password/email/number/textarea/select/checkbox only. When `required` is true, the `required` attribute is emitted on select / textarea / checkbox as well.
 
@@ -434,7 +442,7 @@ A `<content>` column's nodes run in the row-variable scope and can reference `us
 </component>
 ```
 
-The `name` attribute is required; `<data>` is optional. Child element names are the data keys; element text is the value (supports interpolation, compiled as PHP-context concatenation). Compiles to:
+The `name` attribute is required; `<data>` is optional. Child element names are the data keys; element text is the value (supports interpolation, compiled as PHP-context concatenation). A `<data>` value is **text only** — a value holding child elements has no representation here and is a compile error (`has child elements that would be dropped`), instead of being folded into its text with the tags gone. Data keys must be unique too: the map is keyed by element name, so a repeat is a compile error (`a data key may only appear once`). Compiles to:
 
 ```php
 <?= $this->component('card', [
@@ -515,6 +523,7 @@ Error categories and their messages:
 | XML syntax error | `simplexml_load_string` fails + libxml error message; includes a fix hint when the source contains `@attr` | XML 语法错误: error parsing attribute name；…请改用 __click |
 | Root element error | root element is not `<page>` | XML 根元素必须是 <page> |
 | Structure error | top-level rule violated, section missing name, option missing value | 同时指定 layout 与 body |
+| Duplicate definition | a section name / container element / data key / option value / `<attr>` name appears twice — all of these become keyed maps, so the repeat would collapse two entries into one | `<body> is defined more than once; a container element may only appear once` |
 | Unknown node | element name not in the vocabulary | 未知节点类型 |
 | Missing/invalid field | required attribute missing, enum out of range, type mismatch | if 缺 when；level 为 7 |
 | Boolean attribute spelling | `required` value not in the true/false vocabulary nor the two "present" spellings | required 的值 "maybe" 不是布尔；真值可用 true / 1 / yes / on / required / 空值，假值可用 false / 0 / no / off |
@@ -524,7 +533,7 @@ Error categories and their messages:
 | Literal error | `{{ }}` written in a literal field | "empty" 是字面量字段，不支持 {{ }} 插值 |
 | Template-layer marker | `##` appears inside a literal field (`label` / `name` / `tag` / `empty` / option etc.) — these fields are written into the output verbatim with no place to escape | body[0].fields[0]: "label" 是字面量，不允许出现 "##"（模板层语法） |
 | Nested-structure type error | field/column type does not match the element name | type 必须是 "field" |
-| Unknown attribute | attribute is neither the node's DSL field nor in the passthrough whitelist | 未知属性 "levl" |
+| Unknown attribute | attribute is neither the node's DSL field nor in the passthrough whitelist; namespaced names such as `xml:lang` are read through DOM and land here too | 未知属性 "levl" |
 | Hyphenated directive name | `x-on-*` / `x-bind-*` / `x-transition-*` (Alpine has only the colon form) | 请写 "x-on:click" 或 "__click" |
 | Attribute has no mount point | forwarded attribute or `<attr>` on a node that emits no tag | 节点 <text> 不输出标签，请改用 <el tag="..."> 包裹内容 |
 | Unknown/out-of-range child | a container has an unlisted child element (`fields` / `columns` / `options` / `sections` / `then` / `else` / `body` / `data`), or a leaf node has a nested tag | 不允许的子元素 <sectoin>（可用: section） |
@@ -532,6 +541,9 @@ Error categories and their messages:
 | Bare text in a container | text or CDATA written directly inside a container (`body`/`then`/`else`/`content`/`section`/`el`/`sections`/`fields`/`columns`/`options`/`data`) | 不能直接写文本或 CDATA（会被丢弃），请用 <text> 包裹 |
 | `<attr>` with child content | `<attr>` has children or text | `<attr>` 只接受 name / value 属性，不能带子内容 |
 | `<attr>` misuse | missing name/value, duplicate with a same-named attribute, placed under a container | `<attr>` 只能作为会输出标签的节点的子元素 |
+| Wrapper element attribute | an attribute on a wrapper element (`sections` / `body` / `then` / `else` / `fields` / `columns` / `data` / `options` / `content`) beyond its whitelisted spelling (`section.name`, `option.value`, `attr.name` / `attr.value`) | unknown attribute "class" on <section> |
+| Data value is not text | a `<data>` key whose value contains child elements | "title" has child elements that would be dropped |
+| Illegal `<attr>` name | `<attr name>` contains whitespace, quotes, `<`, `>`, `/` or `=` | `<attr name="a b"> is not a legal attribute name; it is emitted exactly as written` |
 
 The compiler maintains a path from the root to each node (e.g. `sections.content[2]`), and every error carries the path. Indices in a path are always positional (`body[0]`, `fields[0]`, `columns[0]`, `sections[0]`, `options[0]`), not element names — SimpleXML gives element names as keys when iterating repeated children, and the frontend normalizes uniformly to positional indices via `childList()`. When an XML syntax error cannot be located to a node, the parser message plus the file path is output.
 
@@ -716,6 +728,8 @@ xml-pages 是 miGears 框架的可选配套模块：一种基于 XML 的声明�
 
 `<section>` 必须有 `name` 属性，其子元素即节点树数组。`title` 属性存在时自动生成一个 `title` section（仅在有 `layout` 时生效，无 layout 时忽略并告警）。
 
+section 的 `name` 在页面内必须唯一：section 表以名为键，重名会把两个 section 静默折成一个，因此重名是编译错误（`is defined more than once; a section name may only appear once`）。名称两侧空白会像其他文本字段一样被裁掉（残留的空格永远匹配不上它要填充的那个布局 section）；裁掉空白后为空的名称视为该属性缺失，按缺失 `name` 报同样的错。
+
 ### 4.2 XML 编写注意
 
 解析层是 libxml（PHP 内置 SimpleXML）。节点模型的对应规则：
@@ -724,6 +738,7 @@ xml-pages 是 miGears 框架的可选配套模块：一种基于 XML 的声明�
 - **字段走属性**：如 `<heading level="2">`、`<link href="..." target="_blank">`、`<if when="...">`。
 - **文本内容走元素文本**：`<text>`、`<heading>`、`<link>` 的元素文本即 `text` 字段；首尾空白会被修剪。
 - **容器子元素**：`<if>` 的子元素是 `<then>`/`<else>`；`<each>` 的是 `<body>`；`<form>` 的是 `<fields>`（内含 `<field>`）；`<table>` 的是 `<columns>`（内含 `<column>`）；`<field>` 的是 `<options>`（内含 `<option value="...">`）；`<column>` 的是 `<content>`；`<component>` 的是 `<data>`（子元素名即数据键）。
+- **容器子元素至多出现一次**：`<sections>` / `<body>` / `<then>` / `<else>` / `<fields>` / `<columns>` / `<data>` / `<options>` / `<content>` 按定义都是单数，而 SimpleXML 的 `isset($el->body)` 只回答第一个匹配——第二个会被丢弃、页面却照常编译成功。因此重复即编译错误（`<body> is defined more than once; a container element may only appear once`）。
 
 转义与特殊字符：
 
@@ -759,6 +774,8 @@ xml-pages 是 miGears 框架的可选配套模块：一种基于 XML 的声明�
 
 不输出标签的节点（`text`、`if`、`each`、`component`）不接受透传属性，需用 `el` 包裹。
 
+**包装元素**（`sections` / `body` / `then` / `else` / `fields` / `columns` / `data` / `options` / `content`）同样不输出标签，属性没有可挂载之处，因此**不接受任何属性**；在它们上面写属性即编译错误（`unknown attribute "class" on <section>`）。只有少数拼写确有含义，按元素逐个白名单化：`<section>` 只接受 `name`，`<option>` 只接受 `value`，`<attr>` 只接受 `name` / `value`。其余一律按拼写错误处理——包装元素上的属性此前会无声消失。
+
 透传属性的值先做 HTML 属性转义（`ENT_COMPAT`，保留单引号可读性），再做 `{{ }}` 插值——顺序不能反，否则 `## ##` 糖语法里的引号会被转义破坏。
 
 **`__event` → `@event`**：XML 的属性名不允许 `@`（不是合法 NameStartChar），因此无法直接书写 `@click`。属性名以 `__` 开头的按位置映射——`__` 换 `@`，其余照抄：
@@ -779,6 +796,8 @@ body[0]: 未知属性 "x-on-click"；Alpine 的事件/绑定指令用冒号形�
 ```
 
 XML 在属性名上比 HTML 严格：`:` 属于保留的命名空间分隔符，libxml 会警告但仍保留属性，所以上表中的冒号形式可用；真正写不出来的只有 `@` 开头。
+
+属性改为经 DOM 读取，而非 SimpleXML 的 `attributes()`（它只返回不带前缀的名字），因此 `xml:lang` 这类带命名空间前缀的属性不再被静默忽略：在包装元素上按未知属性拒绝，在会产出标签的节点上则按上文「名字含冒号即透传」的同一规则原样输出。
 
 ### 4.4 `<attr>` 显式属性
 
@@ -805,6 +824,7 @@ XML 在属性名上比 HTML 严格：`:` 属于保留的命名空间分隔符，
 |------|------|
 | 可用位置 | 会输出标签的节点的子元素：`el` / `heading` / `link` / `form` / `table` / `field` / `column` |
 | `name` | 必填，任意合法 HTML 属性名（含 `@`），**原样输出、不做 `__` 映射** |
+| `name` 合法性 | 名字原样输出，因此不得含空白、引号、`<`、`>`、`/`、`=`；其余写法即编译错误（`is not a legal attribute name`） |
 | `value` | 必填，支持 `{{ }}` 插值 |
 | 重复 | 与已有的同名属性冲突即编译错误 |
 | 撞字段 | 与节点的 DSL 字段同名即编译错误（如 `<link>` 上写 `<attr name="href">`） |
@@ -986,7 +1006,7 @@ body/sections 中的每个元素都是一个节点，**元素名即类型**。�
 | `checked` | path | 仅 checkbox | 真值时输出 `checked` 属性；其他 input 上属编译错误 |
 | `rows` | int | 仅 textarea | 默认 4；其他 input 上属编译错误 |
 
-`input` 枚举：`text`、`password`、`email`、`number`、`textarea`、`select`、`checkbox`、`hidden`、`submit`。非法枚举即编译错误。`select` 缺 `options`、`options` 用在不支持的 input 上、`select` 上使用 `value`、`<option>` 缺 `value` 属性，均编译错误。
+`input` 枚举：`text`、`password`、`email`、`number`、`textarea`、`select`、`checkbox`、`hidden`、`submit`。非法枚举即编译错误。`select` 缺 `options`、`options` 用在不支持的 input 上、`select` 上使用 `value`、`<option>` 缺 `value` 属性，均编译错误。options 以 `value` 为键，重复的 `<option value="...">` 会把两项折成一项、第一项静默消失，因此重复的 `value` 即编译错误（`an option value may only appear once`）。
 
 字段的**使用范围**同样是硬约束，越界即编译错误（这些字段此前会被静默丢弃）：`placeholder` 仅 text/password/email/number、`checked` 仅 checkbox、`rows` 仅 textarea、`value` 不支持 submit、`required` 仅 text/password/email/number/textarea/select/checkbox。`required` 为真时在 select / textarea / checkbox 上同样输出 `required` 属性。
 
@@ -1061,7 +1081,7 @@ body/sections 中的每个元素都是一个节点，**元素名即类型**。�
 </component>
 ```
 
-`name` 属性必填，`<data>` 可选；子元素名即数据键，元素文本即值（支持插值，PHP 上下文拼接编译）。编译为：
+`name` 属性必填，`<data>` 可选；子元素名即数据键，元素文本即值（支持插值，PHP 上下文拼接编译）。`<data>` 的值**只能是文本**——值内含子元素在此没有表示方式，因此是编译错误（`has child elements that would be dropped`），而不是被折成文本、标签无声消失。数据键同样必须唯一：映射以元素名为键，重复即编译错误（`a data key may only appear once`）。编译为：
 
 ```php
 <?= $this->component('card', [
@@ -1142,6 +1162,7 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 | XML 语法错误 | `simplexml_load_string` 失败 + libxml 错误消息；源码含 `@attr` 时附修复提示 | XML 语法错误: error parsing attribute name；…请改用 __click |
 | 根元素错误 | 根元素不是 `<page>` | XML 根元素必须是 <page> |
 | 结构错误 | 顶层规则违反、section 缺 name、option 缺 value | 同时指定 layout 与 body |
+| 重复定义 | section 名 / 容器元素 / 数据键 / option 值 / `<attr>` 名出现两次——这些都会变成以键索引的映射，重复会把两项折成一项 | `<body> is defined more than once; a container element may only appear once` |
 | 未知节点 | 元素名不在词表 | 未知节点类型 |
 | 字段缺失/非法 | 必填属性缺失、枚举越界、类型不符 | if 缺 when；level 为 7 |
 | 布尔属性拼写错误 | `required` 的值不在真假词表与两种「存在」写法之内 | required 的值 "maybe" 不是布尔；真值可用 true / 1 / yes / on / required / 空值，假值可用 false / 0 / no / off |
@@ -1151,7 +1172,7 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 | 字面量错误 | 字面量字段写了 `{{ }}` | "empty" 是字面量字段，不支持 {{ }} 插值 |
 | 模板层标记 | 字面量字段（`label` / `name` / `tag` / `empty` / option 等）里出现 `##`——这些字段原样写入产物，没有可转义的位置 | body[0].fields[0]: "label" 是字面量，不允许出现 "##"（模板层语法） |
 | 内嵌结构类型错误 | field/column 的 type 与元素名不符 | type 必须是 "field" |
-| 未知属性 | 属性既非该节点的 DSL 字段，也不在透传白名单 | 未知属性 "levl" |
+| 未知属性 | 属性既非该节点的 DSL 字段，也不在透传白名单；`xml:lang` 这类带命名空间前缀的名字也经 DOM 读出、同样落在此处 | 未知属性 "levl" |
 | 连字符指令名 | `x-on-*` / `x-bind-*` / `x-transition-*`（Alpine 只有冒号形式） | 请写 "x-on:click" 或 "__click" |
 | 属性无挂载点 | 透传属性或 `<attr>` 出现在不输出标签的节点上 | 节点 <text> 不输出标签，请改用 <el tag="..."> 包裹内容 |
 | 未知/越界子元素 | 容器出现未列出的子元素（`fields` / `columns` / `options` / `sections` / `then` / `else` / `body` / `data`）、叶子节点出现嵌套标签 | 不允许的子元素 <sectoin>（可用: section） |
@@ -1159,6 +1180,9 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 | 容器内裸文本 | 容器（`body`/`then`/`else`/`content`/`section`/`el`/`sections`/`fields`/`columns`/`options`/`data`）里直接写文本或 CDATA | 不能直接写文本或 CDATA（会被丢弃），请用 <text> 包裹 |
 | `<attr>` 带子内容 | `<attr>` 有子元素或文本 | `<attr>` 只接受 name / value 属性，不能带子内容 |
 | `<attr>` 误用 | 缺 name/value、与同名属性重复、出现在容器下 | `<attr>` 只能作为会输出标签的节点的子元素 |
+| 包装元素带属性 | 包装元素（`sections` / `body` / `then` / `else` / `fields` / `columns` / `data` / `options` / `content`）上出现其白名单拼写（`section.name`、`option.value`、`attr.name` / `attr.value`）之外的属性 | unknown attribute "class" on <section> |
+| data 值不是文本 | 某个 `<data>` 键的值含子元素 | "title" has child elements that would be dropped |
+| `<attr>` 名非法 | `<attr name>` 含空白、引号、`<`、`>`、`/`、`=` | `<attr name="a b"> is not a legal attribute name; it is emitted exactly as written` |
 
 编译器为每个节点维护从根到自身的路径（如 `sections.content[2]`），错误必带路径。路径中的下标一律是位置（`body[0]`、`fields[0]`、`columns[0]`、`sections[0]`、`options[0]`），不是元素名——SimpleXML 迭代重复子元素时给出的键是元素名，前端统一经 `childList()` 归一为位置索引。XML 语法错误无法定位到节点时，输出解析器消息 + 文件路径。
 

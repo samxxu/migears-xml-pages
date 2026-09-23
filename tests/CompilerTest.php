@@ -820,7 +820,10 @@ final class CompilerTest extends TestCase
 
     public function testAtSignHintOnlyFiresForAttributePosition(): void
     {
-        // an email address in text must not trigger the hint: '@' is not preceded by whitespace
+        // The hint only exists to explain a syntax error, so a syntax error is
+        // needed to observe its absence: this page is deliberately unclosed. The
+        // email in the text has no whitespace before its '@', so it is not the
+        // mistake the hint describes and the hint must stay away.
         try {
             $this->compile('<page><body><text>contact a@b.com</text></body>');
             $this->fail('should have failed to compile');
@@ -828,6 +831,15 @@ final class CompilerTest extends TestCase
             $this->assertStringContainsString('XML syntax error', $e->getMessage());
             $this->assertStringNotContainsString('__click', $e->getMessage());
         }
+    }
+
+    public function testAnEmailAddressInTextIsOrdinaryContent(): void
+    {
+        // The same text in a well-formed page is not an error at all.
+        self::assertSame(
+            'Contact a@b.com',
+            $this->compile('<page><body><text>Contact a@b.com</text></body></page>')
+        );
     }
 
     public function testBareTextInContainersRejected(): void
@@ -991,6 +1003,170 @@ final class CompilerTest extends TestCase
         );
     }
 
+    public function testDuplicateSectionNameIsRejected(): void
+    {
+        // The section map is keyed by name, so a repeat collapsed the two into one
+        // and the first section's whole tree disappeared without a word.
+        $this->expectError(
+            '<page layout="layout/main"><sections>'
+            . '<section name="content"><text>First</text></section>'
+            . '<section name="content"><text>Second</text></section>'
+            . '</sections></page>',
+            'is defined more than once; a section name may only appear once'
+        );
+    }
+
+    public function testSectionNameIsTrimmedAndMayNotBeEmpty(): void
+    {
+        // Trimmed like every other text field: a stray space would never match the
+        // layout section it is meant to fill.
+        self::assertStringContainsString(
+            "<?php \$this->start('content') ?>",
+            $this->compile('<page layout="layout/main"><sections><section name=" content "><text>A</text></section></sections></page>')
+        );
+        $this->expectError(
+            '<page layout="layout/main"><sections><section name=""><text>A</text></section></sections></page>',
+            'section is missing its name attribute'
+        );
+    }
+
+    public function testRepeatedContainersAreRejected(): void
+    {
+        // SimpleXML answers isset($el->body) about the first match only, so a second
+        // container used to be dropped with the page still compiling.
+        $cases = [
+            ['<page><body><text>A</text></body><body><text>B</text></body></page>', '<body> is defined more than once'],
+            ['<page layout="l"><sections><section name="c"><text>A</text></section></sections>'
+                . '<sections><section name="d"><text>B</text></section></sections></page>', '<sections> is defined more than once'],
+            ['<page><body><if when="a"><then><text>A</text></then><then><text>B</text></then></if></body></page>', '<then> is defined more than once'],
+            ['<page><body><if when="a"><then><text>A</text></then><else><text>B</text></else>'
+                . '<else><text>C</text></else></if></body></page>', '<else> is defined more than once'],
+            ['<page><body><each items="u"><body><text>A</text></body><body><text>B</text></body></each></body></page>', '<body> is defined more than once'],
+            ['<page><body><form action="/s"><fields><field name="a" label="A"/></fields>'
+                . '<fields><field name="b" label="B"/></fields></form></body></page>', '<fields> is defined more than once'],
+            ['<page><body><table items="u"><columns><column label="A" pop="{{ row.a }}"/></columns>'
+                . '<columns><column label="B" pop="{{ row.b }}"/></columns></table></body></page>', '<columns> is defined more than once'],
+            ['<page><body><component name="c"><data><t>A</t></data><data><t>B</t></data></component></body></page>', '<data> is defined more than once'],
+            ['<page><body><form action="/s"><fields><field name="s" label="S" input="select">'
+                . '<options><option value="a">A</option></options><options><option value="b">B</option></options>'
+                . '</field></fields></form></body></page>', '<options> is defined more than once'],
+            ['<page><body><table items="u"><columns><column label="A">'
+                . '<content><text>x</text></content><content><text>y</text></content>'
+                . '</column></columns></table></body></page>', '<content> is defined more than once'],
+        ];
+
+        foreach ($cases as [$xml, $needle]) {
+            $this->expectError($xml, $needle);
+        }
+    }
+
+    public function testWrapperElementsRejectAttributes(): void
+    {
+        // A wrapper emits no tag of its own, so an attribute written there had
+        // nowhere to go and simply vanished.
+        $cases = [
+            ['<page layout="l"><sections><section name="c" class="x"><text>A</text></section></sections></page>', 'unknown attribute "class" on <section>'],
+            ['<page layout="l"><sections foo="1"><section name="c"><text>A</text></section></sections></page>', 'unknown attribute "foo" on <sections>'],
+            ['<page><body><if when="a"><then class="x"><text>A</text></then></if></body></page>', 'unknown attribute "class" on <then>'],
+            ['<page><body><component name="c"><data class="x"><t>A</t></data></component></body></page>', 'unknown attribute "class" on <data>'],
+            ['<page><body><form action="/s"><fields class="x"><field name="a" label="A"/></fields></form></body></page>', 'unknown attribute "class" on <fields>'],
+            ['<page><body><form action="/s"><fields><field name="s" label="S" input="select">'
+                . '<options><option value="a" selected="true">A</option></options>'
+                . '</field></fields></form></body></page>', 'unknown attribute "selected" on <option>'],
+        ];
+
+        foreach ($cases as [$xml, $needle]) {
+            $this->expectError($xml, $needle);
+        }
+    }
+
+    public function testNamespacePrefixedAttributesAreNotSilentlyDropped(): void
+    {
+        // SimpleXML's attributes() returns unprefixed names only, so xml:lang used
+        // to disappear on any element. On a wrapper it is refused; on a node that
+        // emits a tag the shared layer forwards it, because a colon-prefixed name
+        // is how framework directives are spelled.
+        $this->expectError(
+            '<page><body><if when="a"><then xml:lang="en"><text>A</text></then></if></body></page>',
+            'unknown attribute "xml:lang" on <then>'
+        );
+        self::assertSame(
+            "<div xml:lang=\"en\">\nt\n</div>",
+            $this->compile('<page><body><el tag="div" xml:lang="en"><text>t</text></el></body></page>')
+        );
+    }
+
+    public function testNestedMarkupInsideDataValuesIsRejected(): void
+    {
+        // Reading the value as text folded 'Hi <b>Bob</b>' into 'Hi', tags and all.
+        $this->expectError(
+            '<page><body><component name="c"><data><title>Hi <b>Bob</b></title></data></component></body></page>',
+            'has child elements that would be dropped'
+        );
+    }
+
+    public function testRepeatedDataKeysAndOptionValuesAreRejected(): void
+    {
+        $this->expectError(
+            '<page><body><component name="c"><data><t>A</t><t>B</t></data></component></body></page>',
+            'a data key may only appear once'
+        );
+        $this->expectError(
+            '<page><body><form action="/s"><fields><field name="s" label="S" input="select">'
+            . '<options><option value="x">A</option><option value="x">B</option></options>'
+            . '</field></fields></form></body></page>',
+            'an option value may only appear once'
+        );
+    }
+
+    public function testEmptyDataCompilesWithoutAnArgumentArray(): void
+    {
+        // Shared with the other two frontends: an empty map used to emit
+        // component('c', [ , ]), which is not valid PHP at all.
+        self::assertSame(
+            "<?= \$this->component('c') ?>",
+            $this->compile('<page><body><component name="c"><data/></component></body></page>')
+        );
+        self::assertSame(
+            "<?= \$this->component('c') ?>",
+            $this->compile('<page><body><component name="c"/></body></page>')
+        );
+    }
+
+    public function testAttrNamesAreCheckedBecauseTheyAreEmittedVerbatim(): void
+    {
+        // <attr> skips the whitelist so '@click' can be written at all, which
+        // makes it the one name emitted exactly as typed.
+        $this->expectError(
+            '<page><body><el tag="div"><attr name="a b" value="x"/><text>t</text></el></body></page>',
+            'is not a legal attribute name'
+        );
+        $this->expectError(
+            '<page><body><el tag="div"><attr name="" value="x"/><text>t</text></el></body></page>',
+            'is not a legal attribute name'
+        );
+        $this->expectError(
+            '<page><body><el tag="div"><attr name="a" value="b" extra="c"/><text>t</text></el></body></page>',
+            'unknown attribute "extra" on <attr>'
+        );
+    }
+
+    public function testAttrsInsideFieldsAndColumnsAreForwarded(): void
+    {
+        self::assertStringContainsString(
+            'data-x="1"',
+            $this->compile('<page><body><form action="/s"><fields>'
+                . '<field name="a" label="A"><attr name="data-x" value="1"/></field>'
+                . '</fields></form></body></page>')
+        );
+        self::assertStringContainsString(
+            'data-x="1"',
+            $this->compile('<page><body><table items="u"><columns>'
+                . '<column label="A" pop="{{ row.a }}"><attr name="data-x" value="1"/></column>'
+                . '</columns></table></body></page>')
+        );
+    }
+
     private function compile(string $xml): string
     {
         return $this->compiler->compileSource($xml);
@@ -998,8 +1174,14 @@ final class CompilerTest extends TestCase
 
     private function expectError(string $xml, string $needle): void
     {
-        $this->expectException(CompileException::class);
-        $this->expectExceptionMessage($needle);
-        $this->compile($xml);
+        // try/catch rather than expectException(): a test that checks several
+        // failures in one method would otherwise stop at the first one thrown and
+        // leave every later case silently unasserted.
+        try {
+            $this->compile($xml);
+            $this->fail('should have failed to compile: ' . $needle);
+        } catch (CompileException $e) {
+            $this->assertStringContainsString($needle, $e->getMessage());
+        }
     }
 }
