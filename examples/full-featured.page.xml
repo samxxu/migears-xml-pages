@@ -128,17 +128,17 @@
             <!-- ======================================================
                  4. table —— 表格
                  items 必填；<columns> 必填；as 默认 row；empty 可选
-                 列：label 必填，bind 与 <content> 二选一
+                 列：label 必填，pop 与 <content> 二选一
                  ====================================================== -->
 
             <heading level="2">4. 表格</heading>
 
             <table items="users" as="row" empty="暂无数据">
                 <columns>
-                    <!-- bind：相对行变量的路径，如 id → $row['id'] -->
-                    <column label="ID" bind="id"/>
-                    <column label="姓名" bind="name"/>
-                    <column label="邮箱" bind="email"/>
+                    <!-- pop：服务端把数据渲染进单元格，写成 {{ row.字段 }} -->
+                    <column label="ID" pop="{{ row.id }}"/>
+                    <column label="姓名" pop="{{ row.name }}"/>
+                    <column label="邮箱" pop="{{ row.email }}"/>
                     <!-- content：行变量作用域内的节点树，可引用 row.* -->
                     <column label="操作">
                         <content>

@@ -302,11 +302,11 @@ final class CompilerTest extends TestCase
         );
     }
 
-    public function testTableBindColumns(): void
+    public function testTablePopColumns(): void
     {
         $out = $this->compile('<page><body><table items="users"><columns>'
-            . '<column label="ID" bind="id"/>'
-            . '<column label="姓名" bind="name"/>'
+            . '<column label="ID" pop="{{ row.id }}"/>'
+            . '<column label="姓名" pop="{{ row.name }}"/>'
             . '</columns></table></body></page>');
         $this->assertSame(
             "<table>\n<thead><tr><th>ID</th><th>姓名</th></tr></thead>\n<tbody>\n<?php foreach (\$users ?? [] as \$row): ?>\n<tr>\n<td>## \$row['id'] ?? '' ##</td>\n<td>## \$row['name'] ?? '' ##</td>\n</tr>\n<?php endforeach ?>\n</tbody>\n</table>",
@@ -316,7 +316,7 @@ final class CompilerTest extends TestCase
 
     public function testTableCustomAs(): void
     {
-        $out = $this->compile('<page><body><table items="users" as="user"><columns><column label="ID" bind="id"/></columns></table></body></page>');
+        $out = $this->compile('<page><body><table items="users" as="user"><columns><column label="ID" pop="{{ user.id }}"/></columns></table></body></page>');
         $this->assertStringContainsString('<?php foreach ($users ?? [] as $user): ?>', $out);
         $this->assertStringContainsString("## \$user['id'] ?? '' ##", $out);
     }
@@ -334,7 +334,7 @@ final class CompilerTest extends TestCase
 
     public function testTableEmptyText(): void
     {
-        $out = $this->compile('<page><body><table items="users" empty="暂无数据"><columns><column label="ID" bind="id"/></columns></table></body></page>');
+        $out = $this->compile('<page><body><table items="users" empty="暂无数据"><columns><column label="ID" pop="{{ row.id }}"/></columns></table></body></page>');
         $this->assertStringContainsString(
             "<?php if ((\$users ?? []) === []): ?>\n<tr><td colspan=\"1\">暂无数据</td></tr>\n<?php else: ?>",
             $out
@@ -342,11 +342,11 @@ final class CompilerTest extends TestCase
         $this->assertStringContainsString('<?php endif ?>', $out);
     }
 
-    public function testTableColumnBindAndContentConflict(): void
+    public function testTableColumnPopAndContentConflict(): void
     {
         $this->expectError(
-            '<page><body><table items="users"><columns><column label="ID" bind="id"><content><text>x</text></content></column></columns></table></body></page>',
-            'bind'
+            '<page><body><table items="users"><columns><column label="ID" pop="{{ row.id }}"><content><text>x</text></content></column></columns></table></body></page>',
+            'pop'
         );
     }
 
@@ -499,12 +499,12 @@ final class CompilerTest extends TestCase
     public function testColumnTypeOptionalButMustMatch(): void
     {
         $out = $this->compile(
-            '<page><body><table items="users"><columns><column type="column" label="ID" bind="id"/></columns></table></body></page>'
+            '<page><body><table items="users"><columns><column type="column" label="ID" pop="{{ row.id }}"/></columns></table></body></page>'
         );
         $this->assertStringContainsString('<th>ID</th>', $out);
 
         $this->expectError(
-            '<page><body><table items="users"><columns><column type="field" label="ID" bind="id"/></columns></table></body></page>',
+            '<page><body><table items="users"><columns><column type="field" label="ID" pop="{{ row.id }}"/></columns></table></body></page>',
             'type 必须是 "column"'
         );
     }
@@ -520,7 +520,7 @@ final class CompilerTest extends TestCase
     public function testTableEmptyRejectsInterpolation(): void
     {
         $this->expectError(
-            '<page><body><table items="users" empty="{{ user.name }}"><columns><column label="ID" bind="id"/></columns></table></body></page>',
+            '<page><body><table items="users" empty="{{ user.name }}"><columns><column label="ID" pop="{{ row.id }}"/></columns></table></body></page>',
             '不支持 {{ }} 插值'
         );
     }
@@ -587,7 +587,7 @@ final class CompilerTest extends TestCase
             . '<field name="q" label="查" x-model="kw"/>'
             . '</fields></form>'
             . '<table items="users" class="grid"><columns>'
-            . '<column label="ID" bind="id" class="w-8"/>'
+            . '<column label="ID" pop="{{ row.id }}" class="w-8"/>'
             . '</columns></table>'
             . '</body></page>');
 
@@ -631,7 +631,7 @@ final class CompilerTest extends TestCase
     public function testContainerStrayChildRejected(): void
     {
         $this->expectError(
-            '<page><body><table items="users"><columns><colum label="ID" bind="id"/></columns></table></body></page>',
+            '<page><body><table items="users"><columns><colum label="ID" pop="{{ row.id }}"/></columns></table></body></page>',
             '不允许的子元素 <colum>'
         );
     }
@@ -970,6 +970,24 @@ final class CompilerTest extends TestCase
         $this->expectError(
             '<page><body><link href="/u/{{ user..name }}">编辑</link></body></page>',
             '非法路径 "user..name"'
+        );
+    }
+
+    public function testTemplateMarkerInTextIsEscaped(): void
+    {
+        // Text goes through the shared interpolation helper, which escapes the template
+        // marker, so the hashes are rendered as written instead of being evaluated.
+        self::assertStringContainsString(
+            '\##',
+            $this->compile('<page><body><text>## 说明 ##</text></body></page>')
+        );
+    }
+
+    public function testSingleHashStaysLiteral(): void
+    {
+        self::assertStringContainsString(
+            '# 一级标题',
+            $this->compile('<page><body><text># 一级标题</text></body></page>')
         );
     }
 
