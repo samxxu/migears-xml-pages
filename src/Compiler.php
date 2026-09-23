@@ -52,6 +52,17 @@ class Compiler extends PagesCompiler
 
     protected function parse(string $source): array
     {
+        // composer checks "ext-*" when installing, not when running, and both of
+        // these can be compiled out. Naming them here turns what would be an
+        // uncaught Error into a compile error the caller can report like any
+        // other: simplexml_load_string() parses this very call, and every
+        // wrapper element is inspected through DOM below.
+        foreach (['simplexml_load_string' => 'simplexml', 'dom_import_simplexml' => 'dom'] as $function => $extension) {
+            if (! function_exists($function)) {
+                throw new CompileException("ext-{$extension} is not loaded; {$function}() is required to read a page declaration");
+            }
+        }
+
         $prev = libxml_use_internal_errors(true);
         try {
             $xml = simplexml_load_string($source, SimpleXMLElement::class, LIBXML_NONET);

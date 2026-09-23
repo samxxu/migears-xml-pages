@@ -67,6 +67,27 @@ if ($input === null || count($rest) > 3) {
     usage(1);
 }
 
+// Both of the checks below describe the installation, not the page, so they run
+// before any file is read: the message then appears once, not once per file in a
+// directory. Without them each condition left an uncaught Error, a stack trace,
+// and exit code 255 — a code no build script can tell apart from its own crash,
+// and one that contradicts the exit-code contract this tool documents.
+//
+// --help is answered above and needs neither the autoloader nor the extensions.
+if (! class_exists(Compiler::class)) {
+    fwrite(STDERR, "cannot find the composer autoloader; run \"composer install\" in the package, or call the installed vendor/bin/xml-pages instead\n");
+    exit(1);
+}
+// Parsing needs simplexml, and every wrapper element is inspected through DOM.
+// Both ship with PHP but both can be compiled out, and composer's "ext-*" lines
+// are only checked at install time — not on the machine that later runs this.
+foreach (['simplexml_load_string' => 'simplexml', 'dom_import_simplexml' => 'dom'] as $function => $extension) {
+    if (! function_exists($function)) {
+        fwrite(STDERR, "the {$extension} extension is not loaded; compiling a page declaration needs ext-{$extension}\n");
+        exit(1);
+    }
+}
+
 $compiler = new Compiler(function (string $message): void {
     fwrite(STDERR, "warning: {$message}\n");
 });
@@ -82,38 +103,57 @@ $compileOne = function (string $file) use ($compiler, $check, $outputDir): void 
     echo "compiled {$file} -> {$target}\n";
 };
 
-if (is_dir($input)) {
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($input, FilesystemIterator::SKIP_DOTS)
-    );
-    $files = [];
-    foreach ($iterator as $fileInfo) {
-        if ($fileInfo->isFile() && str_ends_with($fileInfo->getFilename(), '.page.xml')) {
-            $files[] = $fileInfo->getPathname();
+$run = static function () use ($compileOne, $input): int {
+    if (is_dir($input)) {
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($input, FilesystemIterator::SKIP_DOTS)
+        );
+        $files = [];
+        foreach ($iterator as $fileInfo) {
+            if ($fileInfo->isFile() && str_ends_with($fileInfo->getFilename(), '.page.xml')) {
+                $files[] = $fileInfo->getPathname();
+            }
         }
-    }
-    sort($files);
+        sort($files);
 
-    $failed = false;
-    foreach ($files as $file) {
-        try {
-            $compileOne($file);
-        } catch (CompileException $e) {
-            $failed = true;
-            fwrite(STDERR, $file . ': ' . $e->getMessage() . "\n");
+        $failed = false;
+        foreach ($files as $file) {
+            try {
+                $compileOne($file);
+            } catch (CompileException $e) {
+                // A page the author has to fix: reported, and the run goes on.
+                $failed = true;
+                fwrite(STDERR, $file . ': ' . $e->getMessage() . "\n");
+            }
         }
-    }
-    exit($failed ? 1 : 0);
-}
 
-if (! is_file($input)) {
-    fwrite(STDERR, "file not found: {$input}\n");
-    exit(1);
-}
+        return $failed ? 1 : 0;
+    }
+
+    if (! is_file($input)) {
+        fwrite(STDERR, "file not found: {$input}\n");
+
+        return 1;
+    }
+
+    try {
+        $compileOne($input);
+    } catch (CompileException $e) {
+        fwrite(STDERR, $input . ': ' . $e->getMessage() . "\n");
+
+        return 1;
+    }
+
+    return 0;
+};
 
 try {
-    $compileOne($input);
-} catch (CompileException $e) {
-    fwrite(STDERR, $input . ': ' . $e->getMessage() . "\n");
+    exit($run());
+} catch (Throwable $e) {
+    // Last resort. A CompileException names the page's own fault and is handled
+    // above; anything reaching this line is the tool breaking instead, and it
+    // still owes the caller a message and the documented failure code rather
+    // than a fatal error page.
+    fwrite(STDERR, 'fatal: ' . $e->getMessage() . "\n");
     exit(1);
 }

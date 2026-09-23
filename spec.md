@@ -508,6 +508,9 @@ Behavior conventions:
 - When processing a directory, reports per file `compiled: <source> -> <target>`; a failure does not interrupt the other files
 - Exit code: 0 if all succeed; 1 if any fails
 - An unrecognised `-`/`--option` is an error: it never falls through to the positional arguments, where a mistyped `--check` would silently become the output directory and turn a dry run into a real write
+- An incomplete installation is reported before any file is read, so the message appears once instead of once per page: a `Compiler` class that cannot be autoloaded (a checkout where `composer install` never ran) and a missing `ext-simplexml` / `ext-dom` each write one line to stderr and exit 1
+- `--help` is answered before those checks, so help still works in an installation that cannot compile anything
+- Any `Error` raised inside the compiler is caught at the top level and reported as `fatal: <message>` with exit code 1, keeping the exit-code contract instead of PHP's uncaught-fatal 255
 
 ## 9. Error Handling
 
@@ -551,6 +554,8 @@ The compiler maintains a path from the root to each node (e.g. `sections.content
 The shared layer's list and type guards (`requireList()`'s list-shape check, `required` boolean, `option` text, `layout` / `title` string, etc.) are unreachable from the XML side: at frontend parse time attributes are always strings and normalized as needed (`level` / `rows` to integers, `required` to boolean), and container children are necessarily built into lists. These guards are the defense the three frontends share by using the same compilation contract; for the array DSL and the YAML frontend they are reachable paths.
 
 Fail-fast: the first error throws, and the CLI continues processing the remaining files in the directory.
+
+**An incomplete installation is reported rather than crashed into.** `Compiler::parse()` checks `function_exists('simplexml_load_string')` and `function_exists('dom_import_simplexml')`, raising a `CompileException` naming the missing extension: composer only validates the `ext-*` requirements at install time, and both extensions can be compiled out — without the check the call itself raises an `Error` that a caller cannot catch by type. The CLI checks the same conditions up front, together with the Composer autoloader, so the message is printed once rather than once per file; whatever still escapes is caught as `fatal: <message>` and reported with exit code 1.
 
 ## 10. Module Structure
 
@@ -625,6 +630,7 @@ Regression tests of the shared compilation layer (node grammar, interpolation, p
 | parsing hints | failed parse from `@click` attaches a `__click` hint; email addresses in text do not trigger the hint |
 | escaping contract | component data interpolation is escaped exactly once (render cascade test, asserts no `&amp;lt;`) |
 | CLI | single-file compile / directory recursion / output-dir / --check / --help / unknown option rejected / failure exit code |
+| Installation | missing Composer autoloader / missing `ext-simplexml` / missing `ext-dom` / an unexpected `Error`: one stderr line, exit code 1, no stack trace; `--help` still answers |
 | integration | the compiled artifact renders successfully after TemplateCompiler's second compilation (tested against migears/template) |
 | copy consistency | built-in components byte-identical to `migears/yaml-pages` (checked on same-repo checkout, skipped on standalone install) |
 
@@ -1148,6 +1154,9 @@ php bin/xml-pages --help
 - 处理目录时逐文件报告 `编译: <source> → <target>`，失败不中断其他文件
 - 退出码：全部成功 0；任一失败 1
 - 未识别的 `-`/`--option` 一律报错：它不会落到位置参数上——否则拼错的 `--check` 会被静默当成输出目录，把干跑变成真实写盘
+- 安装不完整时在任何文件被读取前报错，消息只出现一次而非每页一次：`Compiler` 无法自动加载（未跑过 `composer install` 的检出）与缺 `ext-simplexml` / `ext-dom`，各自向 stderr 写一行并退出 1
+- `--help` 在上述检查之前响应，因此一个什么也编译不了的环境仍然能看帮助
+- 编译器内部抛出的任何 `Error` 都在顶层捕获并报 `fatal: <消息>`、退出码 1，维持退出码约定而不是 PHP 未捕获致命的 255
 
 ## 9. 错误处理
 
@@ -1191,6 +1200,8 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 共享层的列表与类型守卫（`requireList()` 的列表形态判定、`required` 布尔、`option` 文本、`layout` / `title` 字符串等）在 XML 侧不可达：前端解析时属性一律是字符串并按需归一（`level` / `rows` 转整数、`required` 转布尔），容器子元素必然被构造成列表。这些守卫是三个前端共享同一份编译契约的防线，对数组 DSL 与 YAML 前端则是可达路径。
 
 失败即中止（fail-fast）：首个错误抛出，CLI 继续处理目录内其余文件。
+
+**安装不完整是报错，不是撞上致命错误。** `Compiler::parse()` 检查 `function_exists('simplexml_load_string')` 与 `function_exists('dom_import_simplexml')`，缺失时抛出点名对应扩展的 `CompileException`：composer 只在安装期校验 `ext-*`，而这两个扩展都可能被裁剪掉——没有这道检查，调用本身就会抛出调用方无法按类型捕获的 `Error`。CLI 再把同一条件连同 Composer autoloader 一起前置检查，使消息只打印一次而非每文件一次；其余仍然逃逸的异常统一按 `fatal: <消息>` 捕获并以退出码 1 报告。
 
 ## 10. 模块结构
 
@@ -1265,6 +1276,7 @@ composer 依赖说明：运行期实际执行的是生成的模板与内置组�
 | 解析提示 | `@click` 导致解析失败时附 `__click` 提示；文本中的邮箱不触发提示 |
 | 转义契约 | 组件 data 插值恰好转义一次（渲染级联测，断言无 `&amp;lt;`） |
 | CLI | 单文件编译 / 目录递归 / output-dir / --check / --help / 未识别选项被拒 / 失败退出码 |
+| 安装环境 | 缺 Composer autoloader / 缺 `ext-simplexml` / 缺 `ext-dom` / 未预料 `Error`：stderr 一行、退出码 1、无调用栈；`--help` 仍可响应 |
 | 集成 | 编译产物经 TemplateCompiler 二次编译后渲染成功（与 migears/template 联测） |
 | 副本一致性 | 内置组件与 `migears/yaml-pages` 逐字相同（同仓检出时校验，独立安装时跳过） |
 
