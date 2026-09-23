@@ -6,6 +6,10 @@ A declarative XML page definition tool that compiles `.page.xml` declarations in
 
 Sister package of `migears/yaml-pages`: the same declarative DSL expressed in XML instead of YAML. Identical node model and compiled output — both frontends parse into the array DSL of `migears/pages`, which owns the shared compiler. Only the parsing layer differs; pick whichever format you prefer.
 
+> **Background**: miGears is the open-source successor of **TinyGears**, a
+> self-developed PHP framework. It was renamed and open-sourced recently because
+> the name *TinyGears* is already taken in the open-source community.
+
 ## Features
 
 - PHP 8.1+, PSR-4 autoloading, namespace `MiGears\XmlPages`
