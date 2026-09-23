@@ -22,6 +22,9 @@
         "migears/template": "^2.0",
         "phpunit/phpunit": "^10"
     },
+    "bin": [
+        "bin/xml-pages"
+    ],
     "repositories": [
         {
             "type": "path",
