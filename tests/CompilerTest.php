@@ -465,6 +465,19 @@ final class CompilerTest extends TestCase
         $this->expectError('<page><body>', 'XML syntax error');
     }
 
+    public function testEmptyDocumentIsASyntaxErrorWithoutAParserMessage(): void
+    {
+        // An empty file is the one input libxml rejects without recording an
+        // error, so the message has to stand on its own: the ": <parser message>"
+        // half is empty and used to be the branch no case reached.
+        try {
+            $this->compile('');
+            $this->fail('Expected CompileException');
+        } catch (CompileException $e) {
+            self::assertSame('XML syntax error', $e->getMessage());
+        }
+    }
+
     public function testErrorCarriesNodePath(): void
     {
         try {

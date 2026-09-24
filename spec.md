@@ -524,7 +524,7 @@ Error categories and their messages:
 
 | Category | Detection | Example |
 |------|------|------|
-| XML syntax error | `simplexml_load_string` fails + libxml error message; includes a fix hint when the source contains `@attr` | XML 语法错误: error parsing attribute name；…请改用 __click |
+| XML syntax error | `simplexml_load_string` fails + libxml error message; includes a fix hint when the source contains `@attr`; an empty document is the one failure libxml does not report, so there the message stands without a parser part | XML 语法错误: error parsing attribute name；…请改用 __click |
 | Root element error | root element is not `<page>` | XML 根元素必须是 <page> |
 | Structure error | top-level rule violated, section missing name, option missing value | 同时指定 layout 与 body |
 | Duplicate definition | a section name / container element / data key / option value / `<attr>` name appears twice — all of these become keyed maps, so the repeat would collapse two entries into one | `<body> is defined more than once; a container element may only appear once` |
@@ -617,7 +617,7 @@ Regression tests of the shared compilation layer (node grammar, interpolation, p
 | nested structures | `<field type="field">` passes, `<field type="column">` errors |
 | literals | `{{ }}` in literal fields like `label`, `empty`, `<option>` errors |
 | template-layer marker | `##` in text is escaped per template-layer syntax (artifact contains `\##`); a single `#` needs no escaping (shared layer, reachable from the frontend too) |
-| parsing | XML syntax errors error out, root not `<page>` errors out |
+| parsing | XML syntax errors error out, root not `<page>` errors out, an empty document reports the error with no parser part to append |
 | passthrough | Alpine / Vue / htmx / Livewire / Stimulus directives plus `class`/`id`/`style` forwarded; value escaping; interpolation inside values; single quotes stay readable |
 | `__event` | `__click` → `@click`; with modifiers (`__keydown.escape.window`); errors on a tag-less node; duplicate with `<attr name="@click">` errors |
 | hyphen interception | `x-on-click` / `x-bind-href` / `x-transition-enter` error out and give the colon-form suggestion; colon-less directives (`x-show`/`x-data`) unaffected |
@@ -1170,7 +1170,7 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 
 | 类别 | 检测 | 示例 |
 |------|------|------|
-| XML 语法错误 | `simplexml_load_string` 失败 + libxml 错误消息；源码含 `@attr` 时附修复提示 | XML 语法错误: error parsing attribute name；…请改用 __click |
+| XML 语法错误 | `simplexml_load_string` 失败 + libxml 错误消息；源码含 `@attr` 时附修复提示；空文档是唯一 libxml 不报告的情况，此时消息不带解析器部分 | XML 语法错误: error parsing attribute name；…请改用 __click |
 | 根元素错误 | 根元素不是 `<page>` | XML 根元素必须是 <page> |
 | 结构错误 | 顶层规则违反、section 缺 name、option 缺 value | 同时指定 layout 与 body |
 | 重复定义 | section 名 / 容器元素 / 数据键 / option 值 / `<attr>` 名出现两次——这些都会变成以键索引的映射，重复会把两项折成一项 | `<body> is defined more than once; a container element may only appear once` |
@@ -1263,7 +1263,7 @@ composer 依赖说明：运行期实际执行的是生成的模板与内置组�
 | 内嵌结构 | `<field type="field">` 可通过，`<field type="column">` 报错 |
 | 字面量 | `label`、`empty`、`<option>` 等字面量字段写 `{{ }}` 报错 |
 | 模板层标记 | 文本里出现 `##` 时按模板层语法转义（产物含 `\##`）；单个 `#` 不需转义（共享层，前端侧同样可达） |
-| 解析 | XML 语法错误报错、根元素非 `<page>` 报错 |
+| 解析 | XML 语法错误报错、根元素非 `<page>` 报错、空文档报错且不带解析器部分 |
 | 透传 | Alpine / Vue / htmx / Livewire / Stimulus 指令与 `class`/`id`/`style` 透传；值转义；值内插值；单引号保持可读 |
 | `__event` | `__click` → `@click`；带修饰符（`__keydown.escape.window`）；无标签节点上报错；与 `<attr name="@click">` 重复报错 |
 | 连字符拦截 | `x-on-click` / `x-bind-href` / `x-transition-enter` 报错且给出冒号形式建议；无冒号指令（`x-show`/`x-data`）不受影响 |
