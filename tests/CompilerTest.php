@@ -496,6 +496,19 @@ final class CompilerTest extends TestCase
         );
     }
 
+    public function testNodeTypeOptionalButMustMatchTheElementName(): void
+    {
+        // field and column have their own cases; this is the generic node path,
+        // where the element name is what decides the type.
+        $out = $this->compile('<page><body><heading type="heading" level="2">T</heading></body></page>');
+        $this->assertStringContainsString('<h2>T</h2>', $out);
+
+        $this->expectError(
+            '<page><body><heading type="text" level="2">T</heading></body></page>',
+            'type must be "heading"'
+        );
+    }
+
     public function testColumnTypeOptionalButMustMatch(): void
     {
         $out = $this->compile(
@@ -601,6 +614,21 @@ final class CompilerTest extends TestCase
     public function testUnknownAttributeRejected(): void
     {
         $this->expectError('<page><body><heading level="2" levl="3">T</heading></body></page>', 'unknown attribute "levl"');
+    }
+
+    public function testFieldOnlyAttributesAreRejectedOnOtherElements(): void
+    {
+        // rows and required belong to <field>. They used to be converted on every
+        // element first, so a heading carrying a stray rows="xx" was told about the
+        // integer before being told about the attribute it cannot carry.
+        $this->expectError(
+            '<page><body><heading level="2" rows="xx">T</heading></body></page>',
+            'unknown attribute "rows"'
+        );
+        $this->expectError(
+            '<page><body><text required="maybe">T</text></body></page>',
+            'unknown attribute "required"'
+        );
     }
 
     public function testPassthroughOnTaglessNodeRejected(): void

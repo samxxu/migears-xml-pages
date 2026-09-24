@@ -531,7 +531,7 @@ Error categories and their messages:
 | Unknown node | element name not in the vocabulary | 未知节点类型 |
 | Missing/invalid field | required attribute missing, enum out of range, type mismatch | if 缺 when；level 为 7 |
 | Boolean attribute spelling | `required` value not in the true/false vocabulary nor the two "present" spellings | required 的值 "maybe" 不是布尔；真值可用 true / 1 / yes / on / required / 空值，假值可用 false / 0 / no / off |
-| Integer attribute spelling | `level` / `rows` value is not a decimal integer | level 的值 "two" 不是整数；请写十进制数字（如 2） |
+| Integer attribute spelling | `level` on `<heading>` / `rows` on `<field>` is not a decimal integer — each attribute is converted where it is legal, so an element that cannot carry one reports the unknown attribute instead | level 的值 "two" 不是整数；请写十进制数字（如 2） |
 | Path error | interpolation/path grammar mismatch | 非法路径 "user..name" |
 | Context error | e.g. pop/content mutually exclusive | column 同时含 pop 与 content；pop 未引用行变量 |
 | Literal error | `{{ }}` written in a literal field | "empty" 是字面量字段，不支持 {{ }} 插值 |
@@ -621,7 +621,7 @@ Regression tests of the shared compilation layer (node grammar, interpolation, p
 | passthrough | Alpine / Vue / htmx / Livewire / Stimulus directives plus `class`/`id`/`style` forwarded; value escaping; interpolation inside values; single quotes stay readable |
 | `__event` | `__click` → `@click`; with modifiers (`__keydown.escape.window`); errors on a tag-less node; duplicate with `<attr name="@click">` errors |
 | hyphen interception | `x-on-click` / `x-bind-href` / `x-transition-enter` error out and give the colon-form suggestion; colon-less directives (`x-show`/`x-data`) unaffected |
-| passthrough misuse | unknown attributes error; a tag-less node (`text`/`if`/`each`/`component`) carrying attributes errors; unknown page-root attribute errors |
+| passthrough misuse | unknown attributes error; a tag-less node (`text`/`if`/`each`/`component`) carrying attributes errors; unknown page-root attribute errors; an attribute belonging to another element (`rows` / `required` on a non-field) reports the unknown attribute rather than an integer or boolean problem |
 | el | with children / empty children / missing tag errors / invalid tag errors |
 | attr | `@click` and similar shorthands reachable; missing name/value errors; same-name duplicate errors; placed under a container errors |
 | child-element validation | unknown page-root child errors; leaf node with nested tag errors; misspelled container child errors (`<colum>` in `columns`, `<sectoin>` in `sections`, extra subtree in `if`, extra subtree in `each`, extra subtree in `component`) |
@@ -1177,7 +1177,7 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 | 未知节点 | 元素名不在词表 | 未知节点类型 |
 | 字段缺失/非法 | 必填属性缺失、枚举越界、类型不符 | if 缺 when；level 为 7 |
 | 布尔属性拼写错误 | `required` 的值不在真假词表与两种「存在」写法之内 | required 的值 "maybe" 不是布尔；真值可用 true / 1 / yes / on / required / 空值，假值可用 false / 0 / no / off |
-| 整数属性拼写错误 | `level` / `rows` 的值不是十进制整数 | level 的值 "two" 不是整数；请写十进制数字（如 2） |
+| 整数属性拼写错误 | `level` 在 `<heading>` 上、`rows` 在 `<field>` 上时不是十进制整数——每个属性都在它合法的地方转换，因此承载不了它的元素报的是未知属性 | level 的值 "two" 不是整数；请写十进制数字（如 2） |
 | 路径错误 | 插值/路径文法不匹配 | 非法路径 "user..name" |
 | 上下文错误 | pop/content 互斥等 | column 同时含 pop 与 content；pop 未引用行变量 |
 | 字面量错误 | 字面量字段写了 `{{ }}` | "empty" 是字面量字段，不支持 {{ }} 插值 |
@@ -1267,7 +1267,7 @@ composer 依赖说明：运行期实际执行的是生成的模板与内置组�
 | 透传 | Alpine / Vue / htmx / Livewire / Stimulus 指令与 `class`/`id`/`style` 透传；值转义；值内插值；单引号保持可读 |
 | `__event` | `__click` → `@click`；带修饰符（`__keydown.escape.window`）；无标签节点上报错；与 `<attr name="@click">` 重复报错 |
 | 连字符拦截 | `x-on-click` / `x-bind-href` / `x-transition-enter` 报错且给出冒号形式建议；无冒号指令（`x-show`/`x-data`）不受影响 |
-| 透传误用 | 未知属性报错；无标签节点（`text`/`if`/`each`/`component`）承载属性报错；页面根未知属性报错 |
+| 透传误用 | 未知属性报错；无标签节点（`text`/`if`/`each`/`component`）承载属性报错；页面根未知属性报错；属于别的元素的属性（`rows` / `required` 出现在非 field 上）报未知属性，而不是整数或布尔错误 |
 | el | 带子节点 / 空子节点 / 缺 tag 报错 / 非法 tag 报错 |
 | attr | `@click` 等简写可达；缺 name/value 报错；同名重复报错；写在容器下报错 |
 | 子元素校验 | 页面根未知子元素报错；叶子节点嵌套标签报错；容器拼错子元素报错（`columns` 的 `<colum>`、`sections` 的 `<sectoin>`、`if` 的多余子树、`each` 的多余子树、`component` 的多余子树） |

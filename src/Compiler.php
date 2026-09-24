@@ -383,12 +383,10 @@ class Compiler extends PagesCompiler
         if (isset($node['level'])) {
             $node['level'] = $this->toInt($path, 'level', $node['level']);
         }
-        if (isset($node['rows'])) {
-            $node['rows'] = $this->toInt($path, 'rows', $node['rows']);
-        }
-        if (isset($node['required'])) {
-            $node['required'] = $this->toBool($path, 'required', $node['required']);
-        }
+        // rows and required are converted where they are legal, in
+        // fieldFromElement(). Converting them here as well meant an attribute the
+        // element cannot carry was first judged as a number: <heading rows="xx">
+        // complained about "xx" instead of naming the attribute.
 
         return $node;
     }
