@@ -408,6 +408,16 @@ final class CompilerTest extends TestCase
         $this->assertStringContainsString('title', $warnings[0]);
     }
 
+    public function testLayoutNameCannotClimbOutOfTheViewRoots(): void
+    {
+        // The name reaches the engine, which joins it with the registered roots
+        // and includes what it finds: ".." would leave them.
+        $this->expectError(
+            '<page layout="../outside"><sections><section name="content"><text>x</text></section></sections></page>',
+            'must be a template name relative to the views root'
+        );
+    }
+
     public function testComponentLiteralData(): void
     {
         $out = $this->compile('<page><body><component name="card"><data><title>Title</title><body>About</body></data></component></body></page>');

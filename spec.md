@@ -527,6 +527,7 @@ Error categories and their messages:
 | XML syntax error | `simplexml_load_string` fails + libxml error message; includes a fix hint when the source contains `@attr`; an empty document is the one failure libxml does not report, so there the message stands without a parser part | XML 语法错误: error parsing attribute name；…请改用 __click |
 | Root element error | root element is not `<page>` | XML 根元素必须是 <page> |
 | Structure error | top-level rule violated, section missing name, option missing value | 同时指定 layout 与 body |
+| Template name error | `layout` / component `name` is not a relative name inside the view roots — the shared compiler's rule | page: layout "../outside" must be a template name relative to the views root; empty, "." and ".." segments are not allowed |
 | Duplicate definition | a section name / container element / data key / option value / `<attr>` name appears twice — all of these become keyed maps, so the repeat would collapse two entries into one | `<body> is defined more than once; a container element may only appear once` |
 | Unknown node | element name not in the vocabulary | 未知节点类型 |
 | Missing/invalid field | required attribute missing, enum out of range, type mismatch | if 缺 when；level 为 7 |
@@ -602,7 +603,7 @@ Regression tests of the shared compilation layer (node grammar, interpolation, p
 | Group | Cases |
 |------|------|
 | text | text plain / single interpolation / multiple interpolations / multi-line (`&#10;`) |
-| structure | heading at all levels, out-of-range level errors; link href/text interpolation |
+| structure | heading at all levels, out-of-range level errors; link href/text interpolation; a template name (`layout` / component `name`) cannot climb out of the view roots |
 | conditionals | if then / if then+else / `!` negation / missing when errors |
 | loops | each basic / index / nested / missing items errors |
 | forms | each input enum / select options / checkbox checked / submit / invalid enum / select without options / options on an unsupported input / option missing value errors |
@@ -1173,6 +1174,7 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 | XML 语法错误 | `simplexml_load_string` 失败 + libxml 错误消息；源码含 `@attr` 时附修复提示；空文档是唯一 libxml 不报告的情况，此时消息不带解析器部分 | XML 语法错误: error parsing attribute name；…请改用 __click |
 | 根元素错误 | 根元素不是 `<page>` | XML 根元素必须是 <page> |
 | 结构错误 | 顶层规则违反、section 缺 name、option 缺 value | 同时指定 layout 与 body |
+| 模板名错误 | `layout` / 组件 `name` 不是视图根内的相对名——共享编译器的规则 | page: layout "../outside" must be a template name relative to the views root; empty, "." and ".." segments are not allowed |
 | 重复定义 | section 名 / 容器元素 / 数据键 / option 值 / `<attr>` 名出现两次——这些都会变成以键索引的映射，重复会把两项折成一项 | `<body> is defined more than once; a container element may only appear once` |
 | 未知节点 | 元素名不在词表 | 未知节点类型 |
 | 字段缺失/非法 | 必填属性缺失、枚举越界、类型不符 | if 缺 when；level 为 7 |
@@ -1248,7 +1250,7 @@ composer 依赖说明：运行期实际执行的是生成的模板与内置组�
 | 分组 | 用例 |
 |------|------|
 | 文本 | text 纯文本 / 单插值 / 多插值 / 多行（`&#10;`） |
-| 结构 | heading 各级、越界 level 报错；link href/text 插值 |
+| 结构 | heading 各级、越界 level 报错；link href/text 插值；模板名（`layout` / 组件名）不得越出视图根 |
 | 条件 | if then / if then+else / `!` 取反 / when 缺失报错 |
 | 循环 | each 基础 / index / 嵌套 / items 缺失报错 |
 | 表单 | 各 input 枚举 / select options / checkbox checked / submit / 非法枚举 / select 缺 options / options 用在不支持的 input / option 缺 value 报错 |
