@@ -21,13 +21,13 @@ Usage: php xml-pages <command> [arguments]
 
 Commands:
   compile <input> [output-dir] [--check]
-        Compiles .page.xml page declarations into .tpl.php templates
-        <input>       a .page.xml file or directory (directories are recursive)
-        [output-dir]  output directory; defaults to the source file's directory
+        Compile .page.xml page declarations into .tpl.php templates
+        <input>       a .page.xml file or directory (a directory is searched recursively)
+        [output-dir]  output directory, defaults to the source file's directory
         --check       validate only, do not write files
 
 Options:
-  -h, --help   show this help
+  -h, --help   Show this help
 
 TXT;
 
