@@ -152,7 +152,7 @@ The mapping is **positional** (`@` is always first), so there is no splitting am
 **Targeted error for hyphenated forms**: `x-on-*`, `x-bind-*` and `x-transition-*` do not exist in Alpine (Alpine always uses the colon). Because the `x-` prefix would otherwise let these spellings through, they would be silently forwarded and compile successfully while the directive stays dead — so they are intercepted and a suggestion is given:
 
 ```
-body[0]: 未知属性 "x-on-click"；Alpine 的事件/绑定指令用冒号形式，请写 "x-on:click" 或 "__click"
+body[0]: unknown attribute "x-on-click"; Alpine event/binding directives use a colon, write "x-on:click" or "__click"
 ```
 
 XML is stricter than HTML about attribute names: `:` is a reserved namespace separator, but libxml only warns and still keeps the attribute, so the colon forms in the table above work; the only thing truly unwritable is a leading `@`.
@@ -516,7 +516,7 @@ Behavior conventions:
 All errors throw `CompileException` (extends `\RuntimeException`); after the CLI catches it, it is printed to stderr, in the format:
 
 ```
-views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
+views/pages/users.page.xml: sections.content[2]: unknown node type "foo"
 ```
 
 Error categories and their messages:
@@ -524,32 +524,32 @@ Error categories and their messages:
 | Category | Detection | Example |
 |------|------|------|
 | XML syntax error | `simplexml_load_string` fails; **every** error libxml recorded is listed, each with its line; includes a fix hint when the source contains `@attr`; an empty document is the one failure libxml does not report, so there the message stands without a parser part | XML syntax error: line 1: error parsing attribute name; line 1: attributes construct error; … . XML attribute names cannot contain "@": write @click as __click (equivalent to x-on:click) |
-| Root element error | root element is not `<page>` | XML 根元素必须是 <page> |
-| Structure error | top-level rule violated, section missing name, option missing value | 同时指定 layout 与 body |
+| Root element error | root element is not `<page>` | XML root element must be <page> |
+| Structure error | top-level rule violated, section missing name, option missing value | page: layout and body cannot be set together; use sections when layout is set |
 | Title conflict | the `title` attribute and a `title` section both set the page title — they fill the same section, so keeping both would discard one in silence | page: title and a "title" section both set the page title; keep one of them |
 | Template name error | `layout` / component `name` is not a relative name inside the view roots — the shared compiler's rule | page: layout "../outside" must be a template name relative to the views root; empty, "." and ".." segments are not allowed |
-| Duplicate definition | a section name / container element / data key / option value / `<attr>` name appears twice — all of these become keyed maps, so the repeat would collapse two entries into one | `<body> is defined more than once; a container element may only appear once` |
-| Unknown node | element name not in the vocabulary | 未知节点类型 |
-| Missing/invalid field | required attribute missing, enum out of range, type mismatch | if 缺 when；level 为 7 |
-| Boolean attribute spelling | `required` value not in the true/false vocabulary nor the two "present" spellings | required 的值 "maybe" 不是布尔；真值可用 true / 1 / yes / on / required / 空值，假值可用 false / 0 / no / off |
-| Integer attribute spelling | `level` on `<heading>` / `rows` on `<field>` is not a decimal integer — each attribute is converted where it is legal, so an element that cannot carry one reports the unknown attribute instead | level 的值 "two" 不是整数；请写十进制数字（如 2） |
-| Path error | interpolation/path grammar mismatch | 非法路径 "user..name" |
-| Context error | e.g. pop/content mutually exclusive | column 同时含 pop 与 content；pop 未引用行变量 |
-| Literal error | `{{ }}` written in a literal field | "empty" 是字面量字段，不支持 {{ }} 插值 |
-| Template-layer marker | `##` appears inside a literal field (`label` / `name` / `tag` / `empty` / option etc.) — these fields are written into the output verbatim with no place to escape | body[0].fields[0]: "label" 是字面量，不允许出现 "##"（模板层语法） |
-| Nested-structure type error | field/column type does not match the element name | type 必须是 "field" |
-| Unknown attribute | attribute is neither the node's DSL field nor in the passthrough whitelist; namespaced names such as `xml:lang` are read through DOM and land here too | 未知属性 "levl" |
-| Hyphenated directive name | `x-on-*` / `x-bind-*` / `x-transition-*` (Alpine has only the colon form) | 请写 "x-on:click" 或 "__click" |
-| Attribute has no mount point | forwarded attribute or `<attr>` on a node that emits no tag | 节点 <text> 不输出标签，请改用 <el tag="..."> 包裹内容 |
-| Unknown/out-of-range child | a container has an unlisted child element (`fields` / `columns` / `options` / `sections` / `then` / `else` / `body` / `data`), or a leaf node has a nested tag | 不允许的子元素 <sectoin>（可用: section） |
-| Brace disorder | interpolation contains `{{{` or `}}}` | 插值符号不能连续三个花括号 |
-| Bare text in a container | text or CDATA written directly inside a container (`body`/`then`/`else`/`content`/`section`/`el`/`sections`/`fields`/`columns`/`options`/`data`) | 不能直接写文本或 CDATA（会被丢弃），请用 <text> 包裹 |
-| `<attr>` with child content | `<attr>` has children or text | `<attr>` 只接受 name / value 属性，不能带子内容 |
+| Duplicate definition | a section name / container element / data key / option value / `<attr>` name appears twice — all of these become keyed maps, so the repeat would collapse two entries into one | page: <body> is defined more than once; a container element may only appear once |
+| Unknown node | element name not in the vocabulary | sections.content[2]: unknown node type "foo" |
+| Missing/invalid field | required attribute missing, enum out of range, type mismatch | body[0]: missing string field "when"；body[0]: heading level must be an integer from 1 to 6, got 7 |
+| Boolean attribute spelling | `required` value not in the true/false vocabulary nor the two "present" spellings | body[0].fields[0]: the value "maybe" for required is not a boolean; truthy values may be true / 1 / yes / on / required / empty, and falsy values may be false / 0 / no / off |
+| Integer attribute spelling | `level` on `<heading>` / `rows` on `<field>` is not a decimal integer — each attribute is converted where it is legal, so an element that cannot carry one reports the unknown attribute instead | body[0]: the value "two" for level is not an integer; write a decimal number (e.g. 2) |
+| Path error | interpolation/path grammar mismatch | body[0]: invalid path "user..name"; only a.b.c variable paths are supported |
+| Context error | e.g. pop/content mutually exclusive | body[0].columns[0]: a column cannot specify both pop and content；body[0].columns[0].pop: must reference the row variable "row", got "{{ user.name }}" |
+| Literal error | `{{ }}` written in a literal field | body[0]: "empty" is a literal field and does not support {{ }} interpolation |
+| Template-layer marker | `##` appears inside a literal field (`label` / `name` / `tag` / `empty` / option etc.) — these fields are written into the output verbatim with no place to escape | body[0].fields[0]: "label" is a literal and may not contain "##" (template-level syntax) |
+| Nested-structure type error | field/column type does not match the element name | body[0].fields[0]: type must be "field" (the element name decides the node type) |
+| Unknown attribute | attribute is neither the node's DSL field nor in the passthrough whitelist; namespaced names such as `xml:lang` are read through DOM and land here too | body[0]: unknown attribute "levl"; the passthrough accepts the '@event' shorthand, directive names with a colon (x-on:click / wire:click / :href, etc.), the x- / v- / hx- / data- prefixes and class / id / style / bind; check the spelling |
+| Hyphenated directive name | `x-on-*` / `x-bind-*` / `x-transition-*` (Alpine has only the colon form) | body[0]: unknown attribute "x-on-click"; Alpine event/binding directives use a colon, write "x-on:click" or "__click" |
+| Attribute has no mount point | forwarded attribute or `<attr>` on a node that emits no tag | body[0]: node <text> emits no tag and cannot carry attribute "class"; wrap the content in <el tag="..."> |
+| Unknown/out-of-range child | a container has an unlisted child element (`fields` / `columns` / `options` / `sections` / `then` / `else` / `body` / `data`), or a leaf node has a nested tag | sections: disallowed child element <sectoin> (allowed: section) |
+| Brace disorder | interpolation contains `{{{` or `}}}` | body[0]: interpolation markers cannot run three braces ({{{ or }}}); write {{ path }} |
+| Bare text in a container | text or CDATA written directly inside a container (`body`/`then`/`else`/`content`/`section`/`el`/`sections`/`fields`/`columns`/`options`/`data`) | body: cannot write text or CDATA directly (it would be dropped); wrap it in <text> |
+| `<attr>` with child content | `<attr>` has children or text | body[0]: <attr> only accepts name / value attributes and cannot carry child content |
 | `<attr>` misuse | missing name/value, duplicate with a same-named attribute, or placed where no tag can mount it — a container (`body`/`then`/`content` etc.) or a node that emits no tag (`text`/`if`/`each`/`component`) | body[0].then: <attr> may only be a child of a node that emits a tag (heading / link / el / form / table / field / column) |
-| Wrapper element attribute | an attribute on a wrapper element (`sections` / `body` / `then` / `else` / `fields` / `columns` / `data` / `options` / `content`) beyond its whitelisted spelling (`section.name`, `option.value`, `attr.name` / `attr.value`) | unknown attribute "class" on <section> |
-| Data value is not text | a `<data>` key whose value contains child elements | "title" has child elements that would be dropped |
+| Wrapper element attribute | an attribute on a wrapper element (`sections` / `body` / `then` / `else` / `fields` / `columns` / `data` / `options` / `content`) beyond its whitelisted spelling (`section.name`, `option.value`, `attr.name` / `attr.value`) | sections[0]: unknown attribute "class" on <section>; a wrapper element cannot carry forwarded attributes (allowed: name) |
+| Data value is not text | a `<data>` key whose value contains child elements | body[0].data: <data> values are text, but "title" has child elements that would be dropped |
 | Data child attribute | a `<data>` child carries attributes; the element name is the key and its text is the value, so attributes there would be dropped | body[0].data: "attr" takes no attributes (name / value); the element name is the data key and its text is the value |
-| Illegal `<attr>` name | `<attr name>` contains whitespace, quotes, `<`, `>`, `/` or `=` | `<attr name="a b"> is not a legal attribute name; it is emitted exactly as written` |
+| Illegal `<attr>` name | `<attr name>` contains whitespace, quotes, `<`, `>`, `/` or `=` | body[0]: <attr name="a b"> is not a legal attribute name; it is emitted exactly as written, so it may not contain whitespace, quotes, "<", ">", "/" or "=" |
 
 The compiler maintains a path from the root to each node (e.g. `sections.content[2]`), and every error carries the path. Indices in a path are always positional (`body[0]`, `fields[0]`, `columns[0]`, `sections[0]`, `options[0]`), not element names — SimpleXML gives element names as keys when iterating repeated children, and the frontend normalizes uniformly to positional indices via `childList()`. When an XML syntax error cannot be located to a node, the parser message plus the file path is output.
 
@@ -801,7 +801,7 @@ section 的 `name` 在页面内必须唯一：section 表以名为键，重名�
 **连字符形式的定向报错**：`x-on-*`、`x-bind-*`、`x-transition-*` 在 Alpine 中不存在（Alpine 一律用冒号）。由于 `x-` 前缀本会放行，这类拼写会被静默透传、编译成功而指令失效——因此单独拦截并给出建议：
 
 ```
-body[0]: 未知属性 "x-on-click"；Alpine 的事件/绑定指令用冒号形式，请写 "x-on:click" 或 "__click"
+body[0]: unknown attribute "x-on-click"; Alpine event/binding directives use a colon, write "x-on:click" or "__click"
 ```
 
 XML 在属性名上比 HTML 严格：`:` 属于保留的命名空间分隔符，libxml 会警告但仍保留属性，所以上表中的冒号形式可用；真正写不出来的只有 `@` 开头。
@@ -1165,7 +1165,7 @@ php bin/xml-pages --help
 所有错误抛 `CompileException`（继承 `\RuntimeException`），CLI 捕获后打印到 stderr，格式：
 
 ```
-views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
+views/pages/users.page.xml: sections.content[2]: unknown node type "foo"
 ```
 
 错误分类与信息要求：
@@ -1173,32 +1173,32 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 | 类别 | 检测 | 示例 |
 |------|------|------|
 | XML 语法错误 | `simplexml_load_string` 失败；libxml 记录的**每一条**错误都列出并各带行号；源码含 `@attr` 时附修复提示；空文档是唯一 libxml 不报告的情况，此时消息不带解析器部分 | XML syntax error: line 1: error parsing attribute name; line 1: attributes construct error; … . XML attribute names cannot contain "@": write @click as __click (equivalent to x-on:click) |
-| 根元素错误 | 根元素不是 `<page>` | XML 根元素必须是 <page> |
-| 结构错误 | 顶层规则违反、section 缺 name、option 缺 value | 同时指定 layout 与 body |
+| 根元素错误 | 根元素不是 `<page>` | XML root element must be <page> |
+| 结构错误 | 顶层规则违反、section 缺 name、option 缺 value | page: layout and body cannot be set together; use sections when layout is set |
 | title 冲突 | `title` 属性与 `title` section 同时设置页面标题——两者填的是同一个 section，同时保留会静默丢弃一个 | page: title and a "title" section both set the page title; keep one of them |
 | 模板名错误 | `layout` / 组件 `name` 不是视图根内的相对名——共享编译器的规则 | page: layout "../outside" must be a template name relative to the views root; empty, "." and ".." segments are not allowed |
-| 重复定义 | section 名 / 容器元素 / 数据键 / option 值 / `<attr>` 名出现两次——这些都会变成以键索引的映射，重复会把两项折成一项 | `<body> is defined more than once; a container element may only appear once` |
-| 未知节点 | 元素名不在词表 | 未知节点类型 |
-| 字段缺失/非法 | 必填属性缺失、枚举越界、类型不符 | if 缺 when；level 为 7 |
-| 布尔属性拼写错误 | `required` 的值不在真假词表与两种「存在」写法之内 | required 的值 "maybe" 不是布尔；真值可用 true / 1 / yes / on / required / 空值，假值可用 false / 0 / no / off |
-| 整数属性拼写错误 | `level` 在 `<heading>` 上、`rows` 在 `<field>` 上时不是十进制整数——每个属性都在它合法的地方转换，因此承载不了它的元素报的是未知属性 | level 的值 "two" 不是整数；请写十进制数字（如 2） |
-| 路径错误 | 插值/路径文法不匹配 | 非法路径 "user..name" |
-| 上下文错误 | pop/content 互斥等 | column 同时含 pop 与 content；pop 未引用行变量 |
-| 字面量错误 | 字面量字段写了 `{{ }}` | "empty" 是字面量字段，不支持 {{ }} 插值 |
-| 模板层标记 | 字面量字段（`label` / `name` / `tag` / `empty` / option 等）里出现 `##`——这些字段原样写入产物，没有可转义的位置 | body[0].fields[0]: "label" 是字面量，不允许出现 "##"（模板层语法） |
-| 内嵌结构类型错误 | field/column 的 type 与元素名不符 | type 必须是 "field" |
-| 未知属性 | 属性既非该节点的 DSL 字段，也不在透传白名单；`xml:lang` 这类带命名空间前缀的名字也经 DOM 读出、同样落在此处 | 未知属性 "levl" |
-| 连字符指令名 | `x-on-*` / `x-bind-*` / `x-transition-*`（Alpine 只有冒号形式） | 请写 "x-on:click" 或 "__click" |
-| 属性无挂载点 | 透传属性或 `<attr>` 出现在不输出标签的节点上 | 节点 <text> 不输出标签，请改用 <el tag="..."> 包裹内容 |
-| 未知/越界子元素 | 容器出现未列出的子元素（`fields` / `columns` / `options` / `sections` / `then` / `else` / `body` / `data`）、叶子节点出现嵌套标签 | 不允许的子元素 <sectoin>（可用: section） |
-| 花括号错乱 | 插值出现 `{{{` 或 `}}}` | 插值符号不能连续三个花括号 |
-| 容器内裸文本 | 容器（`body`/`then`/`else`/`content`/`section`/`el`/`sections`/`fields`/`columns`/`options`/`data`）里直接写文本或 CDATA | 不能直接写文本或 CDATA（会被丢弃），请用 <text> 包裹 |
-| `<attr>` 带子内容 | `<attr>` 有子元素或文本 | `<attr>` 只接受 name / value 属性，不能带子内容 |
+| 重复定义 | section 名 / 容器元素 / 数据键 / option 值 / `<attr>` 名出现两次——这些都会变成以键索引的映射，重复会把两项折成一项 | page: <body> is defined more than once; a container element may only appear once |
+| 未知节点 | 元素名不在词表 | sections.content[2]: unknown node type "foo" |
+| 字段缺失/非法 | 必填属性缺失、枚举越界、类型不符 | body[0]: missing string field "when"；body[0]: heading level must be an integer from 1 to 6, got 7 |
+| 布尔属性拼写错误 | `required` 的值不在真假词表与两种「存在」写法之内 | body[0].fields[0]: the value "maybe" for required is not a boolean; truthy values may be true / 1 / yes / on / required / empty, and falsy values may be false / 0 / no / off |
+| 整数属性拼写错误 | `level` 在 `<heading>` 上、`rows` 在 `<field>` 上时不是十进制整数——每个属性都在它合法的地方转换，因此承载不了它的元素报的是未知属性 | body[0]: the value "two" for level is not an integer; write a decimal number (e.g. 2) |
+| 路径错误 | 插值/路径文法不匹配 | body[0]: invalid path "user..name"; only a.b.c variable paths are supported |
+| 上下文错误 | pop/content 互斥等 | body[0].columns[0]: a column cannot specify both pop and content；body[0].columns[0].pop: must reference the row variable "row", got "{{ user.name }}" |
+| 字面量错误 | 字面量字段写了 `{{ }}` | body[0]: "empty" is a literal field and does not support {{ }} interpolation |
+| 模板层标记 | 字面量字段（`label` / `name` / `tag` / `empty` / option 等）里出现 `##`——这些字段原样写入产物，没有可转义的位置 | body[0].fields[0]: "label" is a literal and may not contain "##" (template-level syntax) |
+| 内嵌结构类型错误 | field/column 的 type 与元素名不符 | body[0].fields[0]: type must be "field" (the element name decides the node type) |
+| 未知属性 | 属性既非该节点的 DSL 字段，也不在透传白名单；`xml:lang` 这类带命名空间前缀的名字也经 DOM 读出、同样落在此处 | body[0]: unknown attribute "levl"; the passthrough accepts the '@event' shorthand, directive names with a colon (x-on:click / wire:click / :href, etc.), the x- / v- / hx- / data- prefixes and class / id / style / bind; check the spelling |
+| 连字符指令名 | `x-on-*` / `x-bind-*` / `x-transition-*`（Alpine 只有冒号形式） | body[0]: unknown attribute "x-on-click"; Alpine event/binding directives use a colon, write "x-on:click" or "__click" |
+| 属性无挂载点 | 透传属性或 `<attr>` 出现在不输出标签的节点上 | body[0]: node <text> emits no tag and cannot carry attribute "class"; wrap the content in <el tag="..."> |
+| 未知/越界子元素 | 容器出现未列出的子元素（`fields` / `columns` / `options` / `sections` / `then` / `else` / `body` / `data`）、叶子节点出现嵌套标签 | sections: disallowed child element <sectoin> (allowed: section) |
+| 花括号错乱 | 插值出现 `{{{` 或 `}}}` | body[0]: interpolation markers cannot run three braces ({{{ or }}}); write {{ path }} |
+| 容器内裸文本 | 容器（`body`/`then`/`else`/`content`/`section`/`el`/`sections`/`fields`/`columns`/`options`/`data`）里直接写文本或 CDATA | body: cannot write text or CDATA directly (it would be dropped); wrap it in <text> |
+| `<attr>` 带子内容 | `<attr>` 有子元素或文本 | body[0]: <attr> only accepts name / value attributes and cannot carry child content |
 | `<attr>` 误用 | 缺 name/value、与同名属性重复，或出现在没有标签可挂的位置——容器（`body`/`then`/`content` 等）或不输出标签的节点（`text`/`if`/`each`/`component`） | body[0].then: <attr> may only be a child of a node that emits a tag (heading / link / el / form / table / field / column) |
-| 包装元素带属性 | 包装元素（`sections` / `body` / `then` / `else` / `fields` / `columns` / `data` / `options` / `content`）上出现其白名单拼写（`section.name`、`option.value`、`attr.name` / `attr.value`）之外的属性 | unknown attribute "class" on <section> |
-| data 值不是文本 | 某个 `<data>` 键的值含子元素 | "title" has child elements that would be dropped |
+| 包装元素带属性 | 包装元素（`sections` / `body` / `then` / `else` / `fields` / `columns` / `data` / `options` / `content`）上出现其白名单拼写（`section.name`、`option.value`、`attr.name` / `attr.value`）之外的属性 | sections[0]: unknown attribute "class" on <section>; a wrapper element cannot carry forwarded attributes (allowed: name) |
+| data 值不是文本 | 某个 `<data>` 键的值含子元素 | body[0].data: <data> values are text, but "title" has child elements that would be dropped |
 | data 子元素带属性 | `<data>` 的子元素带属性；元素名是键、文本是值，属性无处安放会被丢弃 | body[0].data: "attr" takes no attributes (name / value); the element name is the data key and its text is the value |
-| `<attr>` 名非法 | `<attr name>` 含空白、引号、`<`、`>`、`/`、`=` | `<attr name="a b"> is not a legal attribute name; it is emitted exactly as written` |
+| `<attr>` 名非法 | `<attr name>` 含空白、引号、`<`、`>`、`/`、`=` | body[0]: <attr name="a b"> is not a legal attribute name; it is emitted exactly as written, so it may not contain whitespace, quotes, "<", ">", "/" or "=" |
 
 编译器为每个节点维护从根到自身的路径（如 `sections.content[2]`），错误必带路径。路径中的下标一律是位置（`body[0]`、`fields[0]`、`columns[0]`、`sections[0]`、`options[0]`），不是元素名——SimpleXML 迭代重复子元素时给出的键是元素名，前端统一经 `childList()` 归一为位置索引。XML 语法错误无法定位到节点时，输出解析器消息 + 文件路径。
 
