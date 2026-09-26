@@ -95,12 +95,12 @@ $compiler = new Compiler(function (string $message): void {
 $compileOne = function (string $file) use ($compiler, $check, $outputDir): void {
     if ($check) {
         $compiler->compileFile($file);
-        echo "valid: {$file}\n";
+        echo "validated: {$file}\n";
 
         return;
     }
     $target = $compiler->compileToFile($file, $outputDir);
-    echo "compiled {$file} -> {$target}\n";
+    echo "compiled: {$file} -> {$target}\n";
 };
 
 $run = static function () use ($compileOne, $input): int {

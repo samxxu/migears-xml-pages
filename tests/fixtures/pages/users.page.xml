@@ -1,8 +1,5 @@
 <page title="User management" layout="layout/main">
     <sections>
-        <section name="title">
-            <text>User management</text>
-        </section>
         <section name="content">
             <heading level="2">User list</heading>
             <table items="users" as="user" empty="No data">

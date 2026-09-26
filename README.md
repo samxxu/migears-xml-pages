@@ -37,7 +37,7 @@ The generated `.tpl.php` file is a derived artifact — re-running the compiler 
 composer require migears/xml-pages
 ```
 
-Requires PHP 8.1+ and `migears/template` ^2.0. No XML extension to install — SimpleXML ships with PHP.
+Requires PHP 8.1+ with `ext-simplexml` and `ext-dom` (both ship with PHP, and the CLI checks them before it reads a file). Compiling is done by `migears/pages` ^2.0, the shared compiler, which pulls in `migears/template` ^2.0 to render what it emits.
 
 Make the built-in components findable by the template engine:
 
@@ -386,15 +386,15 @@ php bin/xml-pages --help
 Compile errors throw `MiGears\XmlPages\Exception\CompileException` with a node path, e.g.:
 
 ```
-views/pages/users.page.xml: sections.content[2].columns[2]: 列同时指定 pop 与 content
+views/pages/users.page.xml: sections.content[2].columns[2]: a column needs either pop or content
 ```
 
 The CLI prints errors to stderr with the file name; directory mode keeps going on failure.
 
-A parse failure caused by `@` in an attribute position carries a fix hint, since libxml only reports `error parsing attribute name`:
+A parse failure lists **every** error libxml recorded, each with its line, so one run is enough to see everything the parser saw. A failure caused by `@` in an attribute position also carries a fix hint (the list is trimmed here):
 
 ```
-XML 语法错误: error parsing attribute name；XML 属性名不能含 "@"：写 @click 请改用 __click（等价 x-on:click）
+XML syntax error: line 1: error parsing attribute name; line 1: attributes construct error; … . XML attribute names cannot contain "@": write @click as __click (equivalent to x-on:click)
 ```
 
 ## Testing
@@ -446,7 +446,7 @@ MIT
 composer require migears/xml-pages
 ```
 
-要求 PHP 8.1+ 与 `migears/template` ^2.0。无需安装任何扩展——SimpleXML 随 PHP 内置。
+要求 PHP 8.1+ 且启用 `ext-simplexml` 与 `ext-dom`（两者随 PHP 内置，CLI 会在读文件前先检查）。编译由共享编译器 `migears/pages` ^2.0 提供，它带来渲染产物所需的 `migears/template` ^2.0。
 
 让模板引擎能找到内置组件：
 
@@ -795,15 +795,15 @@ php bin/xml-pages --help
 编译错误抛出 `MiGears\XmlPages\Exception\CompileException`，信息带节点路径，例如：
 
 ```
-views/pages/users.page.xml: sections.content[2].columns[2]: 列同时指定 pop 与 content
+views/pages/users.page.xml: sections.content[2].columns[2]: a column needs either pop or content
 ```
 
 CLI 将错误输出到 stderr 并附文件名；目录模式继续处理其余文件。
 
-若因属性名里的 `@` 导致解析失败，会附带修复提示——libxml 只会说 `error parsing attribute name`：
+解析失败会列出 libxml 记录的**每一条**错误（各带行号），一次运行就能看到解析器看到的全部内容。若因属性名里的 `@` 导致，还会再附修复提示（此处省略了中间几条）：
 
 ```
-XML 语法错误: error parsing attribute name；XML 属性名不能含 "@"：写 @click 请改用 __click（等价 x-on:click）
+XML syntax error: line 1: error parsing attribute name; line 1: attributes construct error; … . XML attribute names cannot contain "@": write @click as __click (equivalent to x-on:click)
 ```
 
 ## 测试

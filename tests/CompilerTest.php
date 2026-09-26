@@ -71,6 +71,24 @@ final class CompilerTest extends TestCase
         $this->expectError('<page><body><heading level="-1">Title</heading></body></page>', 'must be an integer from 1 to 6');
     }
 
+    public function testLevelIsOnlyReadOnHeading(): void
+    {
+        // level is a heading field. Reading it for every node judged it as a number
+        // before asking whether the element may carry one at all.
+        $cases = [
+            '<page><body><link href="/x" level="2">Go</link></body></page>' => 'unknown attribute "level"',
+            '<page><body><heading level="two">T</heading></body></page>' => 'is not an integer',
+        ];
+        foreach ($cases as $xml => $needle) {
+            try {
+                $this->compile($xml);
+                $this->fail("{$xml} should have failed to compile");
+            } catch (CompileException $e) {
+                $this->assertStringContainsString($needle, $e->getMessage(), $xml);
+            }
+        }
+    }
+
     public function testLevelAndRowsReadDecimalStrings(): void
     {
         $this->assertSame('<h3>Title</h3>', $this->compile('<page><body><heading level="3">Title</heading></body></page>'));
@@ -379,6 +397,19 @@ final class CompilerTest extends TestCase
         );
     }
 
+    public function testTitleAndTitleSectionConflictRejected(): void
+    {
+        // Both fill the same section, so one used to win in silence — invisible in
+        // the fixtures, which wrote the same text in both places.
+        $this->expectError(
+            '<page title="T" layout="layout/main"><sections>'
+            . '<section name="title"><text>T</text></section>'
+            . '<section name="content"><text>C</text></section>'
+            . '</sections></page>',
+            'title and a "title" section both set the page title'
+        );
+    }
+
     public function testLayoutAndBodyConflict(): void
     {
         $this->expectError(
@@ -473,6 +504,22 @@ final class CompilerTest extends TestCase
     public function testXmlSyntaxError(): void
     {
         $this->expectError('<page><body>', 'XML syntax error');
+    }
+
+    public function testSyntaxErrorReportsEveryParserError(): void
+    {
+        try {
+            $this->compile('<page><body><text>a</text><heading>t</body></page>');
+            $this->fail('should have failed to parse');
+        } catch (CompileException $e) {
+            // libxml records a cascade after the first real fault. None of it is
+            // dropped and every part carries its line, so one run tells the author
+            // everything the parser saw.
+            $message = $e->getMessage();
+            $this->assertStringContainsString('XML syntax error: line 1: ', $message);
+            $this->assertStringContainsString('Opening and ending tag mismatch', $message);
+            $this->assertStringContainsString('Premature end of data', $message);
+        }
     }
 
     public function testEmptyDocumentIsASyntaxErrorWithoutAParserMessage(): void
@@ -1170,6 +1217,17 @@ final class CompilerTest extends TestCase
         $this->expectError(
             '<page><body><component name="c"><data><title>Hi <b>Bob</b></title></data></component></body></page>',
             'has child elements that would be dropped'
+        );
+    }
+
+    public function testDataChildAttributesAreRejected(): void
+    {
+        // <attr name="title" …/> inside <data> used to read as a data key named
+        // "attr" with an empty value: the name and the value both vanished, and
+        // what remained looked like a deliberate key.
+        $this->expectError(
+            '<page><body><component name="card"><data><attr name="title" value="T"/></data></component></body></page>',
+            '"attr" takes no attributes (name / value)'
         );
     }
 

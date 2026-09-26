@@ -85,8 +85,7 @@ class Compiler extends PagesCompiler
         }
 
         if ($xml === false) {
-            $msg = $errors !== [] ? trim($errors[0]->message) : '';
-            throw new CompileException('XML syntax error' . ($msg !== '' ? ': ' . $msg : '') . $this->atSignHint($source));
+            throw new CompileException('XML syntax error' . $this->formatLibxmlErrors($errors) . $this->atSignHint($source));
         }
         if ($xml->getName() !== 'page') {
             throw new CompileException('XML root element must be <page>');
@@ -108,6 +107,24 @@ class Compiler extends PagesCompiler
         }
 
         return '. XML attribute names cannot contain "@": write @click as __click (equivalent to x-on:click)';
+    }
+
+    /**
+     * Every error libxml recorded, not just the first: a document with three typos
+     * should not take three runs to fix, and the YAML frontend reports its whole
+     * list the same way. libxml knows the line, so it is included.
+     *
+     * @param list<LibXMLError> $errors
+     */
+    private function formatLibxmlErrors(array $errors): string
+    {
+        $parts = [];
+        foreach ($errors as $error) {
+            $message = trim($error->message);
+            $parts[] = $error->line > 0 ? "line {$error->line}: {$message}" : $message;
+        }
+
+        return $parts === [] ? '' : ': ' . implode('; ', $parts);
     }
 
     private function pageFromElement(SimpleXMLElement $page): array
@@ -389,6 +406,15 @@ class Compiler extends PagesCompiler
                 $data = [];
                 foreach ($el->data->children() as $key => $value) {
                     $key = (string) $key;
+                    // A <data> child is a key/value pair: the name is the key, the
+                    // text is the value. Attributes on it mean nothing and used to
+                    // vanish — including the ones on <attr name="…"/>, which then
+                    // read as a data key named "attr" with an empty value.
+                    $stray = $this->readAttributes($value);
+                    if ($stray !== []) {
+                        $this->error("{$path}.data: \"{$key}\" takes no attributes (" . implode(' / ', array_keys($stray))
+                            . '); the element name is the data key and its text is the value');
+                    }
                     // A <data> value is text. Nested markup has no representation
                     // here, and reading it as text would fold 'Hi <b>Bob</b>' into
                     // 'Hi' — tags and content gone, with no complaint.
@@ -413,16 +439,19 @@ class Compiler extends PagesCompiler
                 $path,
                 true
             );
+            // level is legal on heading alone, so it is read here rather than for
+            // every node: converting it globally meant <link level="2"> was judged
+            // as a number before anyone asked whether a link may carry one.
+            if ($type === 'heading' && isset($node['level'])) {
+                $node['level'] = $this->toInt($path, 'level', $node['level']);
+            }
             $node['text'] = trim((string) $el);
         }
 
-        if (isset($node['level'])) {
-            $node['level'] = $this->toInt($path, 'level', $node['level']);
-        }
         // rows and required are converted where they are legal, in
-        // fieldFromElement(). Converting them here as well meant an attribute the
-        // element cannot carry was first judged as a number: <heading rows="xx">
-        // complained about "xx" instead of naming the attribute.
+        // fieldFromElement(). Same reason as level above: an attribute the element
+        // cannot carry has to be named as an unknown attribute, not judged as a
+        // number first — <heading rows="xx"> used to complain about "xx".
 
         return $node;
     }

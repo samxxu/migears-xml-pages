@@ -70,7 +70,6 @@ The root element must be `<page>`, whose attributes are the top-level fields and
 ```xml
 <page title="用户管理" layout="layout/admin">
   <sections>
-    <section name="title">...</section>
     <section name="content">...</section>
   </sections>
 </page>
@@ -87,7 +86,7 @@ The root element must be `<page>`, whose attributes are the top-level fields and
 
 Rules: when `layout` is present, `sections` is required and `body` is forbidden; when `layout` is absent, `body` is required and `sections` is forbidden. Violating this is a compile error.
 
-A `<section>` must have a `name` attribute; its children form the node-tree array. When the `title` attribute is present, a `title` section is generated automatically (only effective with `layout`; ignored with a warning when there is no `layout`).
+A `<section>` must have a `name` attribute; its children form the node-tree array. When the `title` attribute is present, a `title` section is generated automatically (only effective with `layout`; ignored with a warning when there is no `layout`). Both spellings fill that one section, so writing the `title` attribute and a `title` section together is a compile error rather than a silent win for one of them.
 
 A section's `name` must be unique within the page: the section map is keyed by name, so a repeat would silently collapse two sections into one, and a duplicate is therefore a compile error (`is defined more than once; a section name may only appear once`). Surrounding whitespace around the name is trimmed like every other text field (a stray space would never match the layout section it is meant to fill); a name that trims to empty counts as the attribute being absent and errors the same way as a missing `name`.
 
@@ -505,7 +504,7 @@ Behavior conventions:
 
 - Output file name: `users.page.xml` → `users.tpl.php`
 - Existing artifacts are overwritten unconditionally (derived-file semantics)
-- When processing a directory, reports per file `compiled: <source> -> <target>`; a failure does not interrupt the other files
+- When processing a directory, reports per file `compiled: <source> -> <target>` (`validated: <source>` under `--check`); a failure does not interrupt the other files
 - Exit code: 0 if all succeed; 1 if any fails
 - An unrecognised `-`/`--option` is an error: it never falls through to the positional arguments, where a mistyped `--check` would silently become the output directory and turn a dry run into a real write
 - An incomplete installation is reported before any file is read, so the message appears once instead of once per page: a `Compiler` class that cannot be autoloaded (a checkout where `composer install` never ran) and a missing `ext-simplexml` / `ext-dom` each write one line to stderr and exit 1
@@ -524,9 +523,10 @@ Error categories and their messages:
 
 | Category | Detection | Example |
 |------|------|------|
-| XML syntax error | `simplexml_load_string` fails + libxml error message; includes a fix hint when the source contains `@attr`; an empty document is the one failure libxml does not report, so there the message stands without a parser part | XML 语法错误: error parsing attribute name；…请改用 __click |
+| XML syntax error | `simplexml_load_string` fails; **every** error libxml recorded is listed, each with its line; includes a fix hint when the source contains `@attr`; an empty document is the one failure libxml does not report, so there the message stands without a parser part | XML syntax error: line 1: error parsing attribute name; line 1: attributes construct error; … . XML attribute names cannot contain "@": write @click as __click (equivalent to x-on:click) |
 | Root element error | root element is not `<page>` | XML 根元素必须是 <page> |
 | Structure error | top-level rule violated, section missing name, option missing value | 同时指定 layout 与 body |
+| Title conflict | the `title` attribute and a `title` section both set the page title — they fill the same section, so keeping both would discard one in silence | page: title and a "title" section both set the page title; keep one of them |
 | Template name error | `layout` / component `name` is not a relative name inside the view roots — the shared compiler's rule | page: layout "../outside" must be a template name relative to the views root; empty, "." and ".." segments are not allowed |
 | Duplicate definition | a section name / container element / data key / option value / `<attr>` name appears twice — all of these become keyed maps, so the repeat would collapse two entries into one | `<body> is defined more than once; a container element may only appear once` |
 | Unknown node | element name not in the vocabulary | 未知节点类型 |
@@ -548,6 +548,7 @@ Error categories and their messages:
 | `<attr>` misuse | missing name/value, duplicate with a same-named attribute, or placed where no tag can mount it — a container (`body`/`then`/`content` etc.) or a node that emits no tag (`text`/`if`/`each`/`component`) | body[0].then: <attr> may only be a child of a node that emits a tag (heading / link / el / form / table / field / column) |
 | Wrapper element attribute | an attribute on a wrapper element (`sections` / `body` / `then` / `else` / `fields` / `columns` / `data` / `options` / `content`) beyond its whitelisted spelling (`section.name`, `option.value`, `attr.name` / `attr.value`) | unknown attribute "class" on <section> |
 | Data value is not text | a `<data>` key whose value contains child elements | "title" has child elements that would be dropped |
+| Data child attribute | a `<data>` child carries attributes; the element name is the key and its text is the value, so attributes there would be dropped | body[0].data: "attr" takes no attributes (name / value); the element name is the data key and its text is the value |
 | Illegal `<attr>` name | `<attr name>` contains whitespace, quotes, `<`, `>`, `/` or `=` | `<attr name="a b"> is not a legal attribute name; it is emitted exactly as written` |
 
 The compiler maintains a path from the root to each node (e.g. `sections.content[2]`), and every error carries the path. Indices in a path are always positional (`body[0]`, `fields[0]`, `columns[0]`, `sections[0]`, `options[0]`), not element names — SimpleXML gives element names as keys when iterating repeated children, and the frontend normalizes uniformly to positional indices via `childList()`. When an XML syntax error cannot be located to a node, the parser message plus the file path is output.
@@ -611,18 +612,19 @@ Regression tests of the shared compilation layer (node grammar, interpolation, p
 | integer attributes | level / rows decimal forms work, non-numeric reports a syntax error, out-of-range still reports a range error from the shared layer |
 | path indices | error paths for fields / columns / sections / options use positional indices (`fields[0]`, not `fields[field]`) |
 | tables | pop column (`{{ row.x }}`) / content column / empty / as default and custom / pop+content together errors / missing columns errors |
-| layout | layout+sections / standalone body / both together errors / both missing errors / title section / section missing name errors |
+| layout | layout+sections / standalone body / both together errors / both missing errors / title section / title attribute plus title section errors / section missing name errors |
 | components | no data / data interpolation (PHP-context concatenation) / data literal |
 | binding | path grammar boundaries (invalid characters, empty segments, `!` only allowed on when) |
 | negation boundary | `each.items` with `!` errors (`!` belongs only to `if.when`) |
 | nested structures | `<field type="field">` passes, `<field type="column">` errors |
 | literals | `{{ }}` in literal fields like `label`, `empty`, `<option>` errors |
 | template-layer marker | `##` in text is escaped per template-layer syntax (artifact contains `\##`); a single `#` needs no escaping (shared layer, reachable from the frontend too) |
-| parsing | XML syntax errors error out, root not `<page>` errors out, an empty document reports the error with no parser part to append |
+| parsing | XML syntax errors error out listing every libxml error with its line, root not `<page>` errors out, an empty document reports the error with no parser part to append |
 | passthrough | Alpine / Vue / htmx / Livewire / Stimulus directives plus `class`/`id`/`style` forwarded; value escaping; interpolation inside values; single quotes stay readable |
 | `__event` | `__click` → `@click`; with modifiers (`__keydown.escape.window`); errors on a tag-less node; duplicate with `<attr name="@click">` errors |
 | hyphen interception | `x-on-click` / `x-bind-href` / `x-transition-enter` error out and give the colon-form suggestion; colon-less directives (`x-show`/`x-data`) unaffected |
-| passthrough misuse | unknown attributes error; a tag-less node (`text`/`if`/`each`/`component`) carrying attributes errors; unknown page-root attribute errors; an attribute belonging to another element (`rows` / `required` on a non-field) reports the unknown attribute rather than an integer or boolean problem |
+| passthrough misuse | unknown attributes error; a tag-less node (`text`/`if`/`each`/`component`) carrying attributes errors; unknown page-root attribute errors; an attribute belonging to another element (`level` on a non-heading, `rows` / `required` on a non-field) reports the unknown attribute rather than an integer or boolean problem |
+| data | data values that contain child elements error; attributes on a `<data>` child error, since the element name is the key and its text is the value |
 | el | with children / empty children / missing tag errors / invalid tag errors |
 | attr | `@click` and similar shorthands reachable; missing name/value errors; same-name duplicate errors; placement errors share one wording — a container and a node that emits no tag (`text`/`if`/`each`/`component`) both report `<attr> may only be a child of a node that emits a tag (heading / link / el / form / table / field / column)` |
 | child-element validation | unknown page-root child errors; leaf node with nested tag errors; misspelled container child errors (`<colum>` in `columns`, `<sectoin>` in `sections`, extra subtree in `if`, extra subtree in `each`, extra subtree in `component`) |
@@ -717,7 +719,6 @@ xml-pages 是 miGears 框架的可选配套模块：一种基于 XML 的声明�
 ```xml
 <page title="用户管理" layout="layout/admin">
   <sections>
-    <section name="title">...</section>
     <section name="content">...</section>
   </sections>
 </page>
@@ -734,7 +735,7 @@ xml-pages 是 miGears 框架的可选配套模块：一种基于 XML 的声明�
 
 规则：`layout` 存在时 `sections` 必填、`body` 禁用；`layout` 不存在时 `body` 必填、`sections` 禁用。违反即编译错误。
 
-`<section>` 必须有 `name` 属性，其子元素即节点树数组。`title` 属性存在时自动生成一个 `title` section（仅在有 `layout` 时生效，无 layout 时忽略并告警）。
+`<section>` 必须有 `name` 属性，其子元素即节点树数组。`title` 属性存在时自动生成一个 `title` section（仅在有 `layout` 时生效，无 layout 时忽略并告警）。两种写法填的是同一个 section，因此同时写出 `title` 属性与 `title` section 属编译错误，而不是静默让其中一方胜出。
 
 section 的 `name` 在页面内必须唯一：section 表以名为键，重名会把两个 section 静默折成一个，因此重名是编译错误（`is defined more than once; a section name may only appear once`）。名称两侧空白会像其他文本字段一样被裁掉（残留的空格永远匹配不上它要填充的那个布局 section）；裁掉空白后为空的名称视为该属性缺失，按缺失 `name` 报同样的错。
 
@@ -1152,7 +1153,7 @@ php bin/xml-pages --help
 
 - 输出文件名：`users.page.xml` → `users.tpl.php`
 - 已存在的产物无条件覆盖（派生文件语义）
-- 处理目录时逐文件报告 `编译: <source> → <target>`，失败不中断其他文件
+- 处理目录时逐文件报告 `compiled: <source> -> <target>`（`--check` 下为 `validated: <source>`），失败不中断其他文件
 - 退出码：全部成功 0；任一失败 1
 - 未识别的 `-`/`--option` 一律报错：它不会落到位置参数上——否则拼错的 `--check` 会被静默当成输出目录，把干跑变成真实写盘
 - 安装不完整时在任何文件被读取前报错，消息只出现一次而非每页一次：`Compiler` 无法自动加载（未跑过 `composer install` 的检出）与缺 `ext-simplexml` / `ext-dom`，各自向 stderr 写一行并退出 1
@@ -1171,9 +1172,10 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 
 | 类别 | 检测 | 示例 |
 |------|------|------|
-| XML 语法错误 | `simplexml_load_string` 失败 + libxml 错误消息；源码含 `@attr` 时附修复提示；空文档是唯一 libxml 不报告的情况，此时消息不带解析器部分 | XML 语法错误: error parsing attribute name；…请改用 __click |
+| XML 语法错误 | `simplexml_load_string` 失败；libxml 记录的**每一条**错误都列出并各带行号；源码含 `@attr` 时附修复提示；空文档是唯一 libxml 不报告的情况，此时消息不带解析器部分 | XML syntax error: line 1: error parsing attribute name; line 1: attributes construct error; … . XML attribute names cannot contain "@": write @click as __click (equivalent to x-on:click) |
 | 根元素错误 | 根元素不是 `<page>` | XML 根元素必须是 <page> |
 | 结构错误 | 顶层规则违反、section 缺 name、option 缺 value | 同时指定 layout 与 body |
+| title 冲突 | `title` 属性与 `title` section 同时设置页面标题——两者填的是同一个 section，同时保留会静默丢弃一个 | page: title and a "title" section both set the page title; keep one of them |
 | 模板名错误 | `layout` / 组件 `name` 不是视图根内的相对名——共享编译器的规则 | page: layout "../outside" must be a template name relative to the views root; empty, "." and ".." segments are not allowed |
 | 重复定义 | section 名 / 容器元素 / 数据键 / option 值 / `<attr>` 名出现两次——这些都会变成以键索引的映射，重复会把两项折成一项 | `<body> is defined more than once; a container element may only appear once` |
 | 未知节点 | 元素名不在词表 | 未知节点类型 |
@@ -1195,6 +1197,7 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 | `<attr>` 误用 | 缺 name/value、与同名属性重复，或出现在没有标签可挂的位置——容器（`body`/`then`/`content` 等）或不输出标签的节点（`text`/`if`/`each`/`component`） | body[0].then: <attr> may only be a child of a node that emits a tag (heading / link / el / form / table / field / column) |
 | 包装元素带属性 | 包装元素（`sections` / `body` / `then` / `else` / `fields` / `columns` / `data` / `options` / `content`）上出现其白名单拼写（`section.name`、`option.value`、`attr.name` / `attr.value`）之外的属性 | unknown attribute "class" on <section> |
 | data 值不是文本 | 某个 `<data>` 键的值含子元素 | "title" has child elements that would be dropped |
+| data 子元素带属性 | `<data>` 的子元素带属性；元素名是键、文本是值，属性无处安放会被丢弃 | body[0].data: "attr" takes no attributes (name / value); the element name is the data key and its text is the value |
 | `<attr>` 名非法 | `<attr name>` 含空白、引号、`<`、`>`、`/`、`=` | `<attr name="a b"> is not a legal attribute name; it is emitted exactly as written` |
 
 编译器为每个节点维护从根到自身的路径（如 `sections.content[2]`），错误必带路径。路径中的下标一律是位置（`body[0]`、`fields[0]`、`columns[0]`、`sections[0]`、`options[0]`），不是元素名——SimpleXML 迭代重复子元素时给出的键是元素名，前端统一经 `childList()` 归一为位置索引。XML 语法错误无法定位到节点时，输出解析器消息 + 文件路径。
@@ -1258,18 +1261,19 @@ composer 依赖说明：运行期实际执行的是生成的模板与内置组�
 | 整数属性 | level / rows 的十进制写法可用、非数字报语法错误、越界仍由共享层报范围错误 |
 | 路径下标 | fields / columns / sections / options 的错误路径使用位置下标（`fields[0]`，不是 `fields[field]`） |
 | 表格 | pop 列（`{{ row.x }}`）/ content 列 / empty / as 默认与自定义 / pop+content 同存报错 / columns 缺失报错 |
-| 布局 | layout+sections / body 独立 / 两者同存报错 / 双缺失报错 / title section / section 缺 name 报错 |
+| 布局 | layout+sections / body 独立 / 两者同存报错 / 双缺失报错 / title section / title 属性与 title section 同存报错 / section 缺 name 报错 |
 | 组件 | 无 data / data 插值（PHP 上下文拼接）/ data 字面量 |
 | 绑定 | 路径文法边界（非法字符、空段、`!` 只允许 when） |
 | 取反边界 | `each.items` 带 `!` 报错（`!` 只属于 `if.when`） |
 | 内嵌结构 | `<field type="field">` 可通过，`<field type="column">` 报错 |
 | 字面量 | `label`、`empty`、`<option>` 等字面量字段写 `{{ }}` 报错 |
 | 模板层标记 | 文本里出现 `##` 时按模板层语法转义（产物含 `\##`）；单个 `#` 不需转义（共享层，前端侧同样可达） |
-| 解析 | XML 语法错误报错、根元素非 `<page>` 报错、空文档报错且不带解析器部分 |
+| 解析 | XML 语法错误报错并列出 libxml 的每一条错误（各带行号）、根元素非 `<page>` 报错、空文档报错且不带解析器部分 |
 | 透传 | Alpine / Vue / htmx / Livewire / Stimulus 指令与 `class`/`id`/`style` 透传；值转义；值内插值；单引号保持可读 |
 | `__event` | `__click` → `@click`；带修饰符（`__keydown.escape.window`）；无标签节点上报错；与 `<attr name="@click">` 重复报错 |
 | 连字符拦截 | `x-on-click` / `x-bind-href` / `x-transition-enter` 报错且给出冒号形式建议；无冒号指令（`x-show`/`x-data`）不受影响 |
-| 透传误用 | 未知属性报错；无标签节点（`text`/`if`/`each`/`component`）承载属性报错；页面根未知属性报错；属于别的元素的属性（`rows` / `required` 出现在非 field 上）报未知属性，而不是整数或布尔错误 |
+| 透传误用 | 未知属性报错；无标签节点（`text`/`if`/`each`/`component`）承载属性报错；页面根未知属性报错；属于别的元素的属性（`level` 出现在非 heading 上，`rows` / `required` 出现在非 field 上）报未知属性，而不是整数或布尔错误 |
+| data | 值含子元素报错；`<data>` 子元素带属性报错——元素名是键、文本是值 |
 | el | 带子节点 / 空子节点 / 缺 tag 报错 / 非法 tag 报错 |
 | attr | `@click` 等简写可达；缺 name/value 报错；同名重复报错；错位放置共用一句措辞——容器与不输出标签的节点（`text`/`if`/`each`/`component`）都报 `<attr> may only be a child of a node that emits a tag (heading / link / el / form / table / field / column)` |
 | 子元素校验 | 页面根未知子元素报错；叶子节点嵌套标签报错；容器拼错子元素报错（`columns` 的 `<colum>`、`sections` 的 `<sectoin>`、`if` 的多余子树、`each` 的多余子树、`component` 的多余子树） |
