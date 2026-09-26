@@ -1170,6 +1170,29 @@ final class CompilerTest extends TestCase
         );
     }
 
+    public function testReservedLoopVariableNamesAreRejectedFromHereToo(): void
+    {
+        // The rule lives in the shared compiler, and XML reaches it through its own
+        // spelling of the attributes: a loop variable is written into the artefact
+        // as a real PHP variable, so "$this" (which PHP will not re-assign) and a
+        // superglobal name (which would be shadowed for the rest of the render)
+        // cannot be used for one.
+        $this->expectError(
+            '<page><body><each items="users" as="this"><body><text>a</text></body></each></body></page>',
+            'each as must not be "this"'
+        );
+        $this->expectError(
+            '<page><body><each items="users" as="u" index="_GET"><body><text>a</text></body></each></body></page>',
+            'each index must not be "_GET"'
+        );
+        // A name that only looks like a superglobal stays legal: $_GLOBALS is an
+        // ordinary variable, and the check is the name, not the shape of it.
+        self::assertStringContainsString(
+            'as $_GLOBALS => $u',
+            $this->compile('<page><body><each items="users" as="u" index="_GLOBALS"><body><text>a</text></body></each></body></page>')
+        );
+    }
+
     public function testRepeatedContainersAreRejected(): void
     {
         // SimpleXML answers isset($el->body) about the first match only, so a second
