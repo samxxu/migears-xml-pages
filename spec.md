@@ -119,6 +119,7 @@ Other notes:
 - Leaf nodes carry their content as text: nesting any other tag is a compile error, not a silent drop that leaves a concatenated string. Only the leaves that emit a tag (`heading`/`link`) also accept `<attr>` children — `text` emits bare text, so it has nothing to mount an attribute on; use CDATA for HTML.
 - Unknown attributes, unknown child elements and misspelled container children (e.g. `<colum>`) are **always compile errors**, never silently dropped; a misspelled node type is reported as "unknown node type". See §4.3 and §9.
 - Containers accept **child elements only**. Text or CDATA written directly inside a container is unreachable from the node model and is therefore a compile error — wrap it in `<text>`; write `<text><![CDATA[...]]></text>` for raw HTML. Indentation whitespace does not count.
+- **Entity declarations** (`<!ENTITY …>`) are a compile error. Nothing external is ever fetched, so a reference to an external entity would expand to nothing and drop its value in silence; an internal entity would expand, so two references of the same shape would behave differently. The declaration is refused by name (the error quotes it), and the value written inline instead. An undefined reference — one with no declaration in the document — stays what libxml already reported: an XML syntax error.
 
 ### 4.3 Attribute passthrough
 
@@ -525,6 +526,7 @@ Error categories and their messages:
 |------|------|------|
 | XML syntax error | `simplexml_load_string` fails; **every** error libxml recorded is listed, each with its line; includes a fix hint when the source contains `@attr`; an empty document is the one failure libxml does not report, so there the message stands without a parser part | XML syntax error: line 1: error parsing attribute name; line 1: attributes construct error; … . XML attribute names cannot contain "@": write @click as __click (equivalent to x-on:click) |
 | Root element error | root element is not `<page>` | XML root element must be <page> |
+| Entity declaration | the source declares an entity (`<!ENTITY …>`). Nothing external is ever fetched, so a reference to one would expand to nothing and drop its value in silence; an internal entity would expand, so the two spellings would look alike and behave differently | entity declarations are not supported: a reference to <!ENTITY xxe> would either expand to nothing (nothing external is ever fetched, so the value is dropped in silence) or pull a document into the page; write the value inline instead |
 | Structure error | top-level rule violated, section missing name, option missing value | page: layout and body cannot be set together; use sections when layout is set |
 | Title conflict | the `title` attribute and a `title` section both set the page title — they fill the same section, so keeping both would discard one in silence | page: title and a "title" section both set the page title; keep one of them |
 | Template name error | `layout` / component `name` is not a relative name inside the view roots — the shared compiler's rule | page: layout "../outside" must be a template name relative to the views root; empty, "." and ".." segments are not allowed |
@@ -619,7 +621,7 @@ Regression tests of the shared compilation layer (node grammar, interpolation, p
 | nested structures | `<field type="field">` passes, `<field type="column">` errors |
 | literals | `{{ }}` in literal fields like `label`, `empty`, `<option>` errors |
 | template-layer marker | `##` in text is escaped per template-layer syntax (artifact contains `\##`); a single `#` needs no escaping (shared layer, reachable from the frontend too) |
-| parsing | XML syntax errors error out listing every libxml error with its line, root not `<page>` errors out, an empty document reports the error with no parser part to append |
+| parsing | XML syntax errors error out listing every libxml error with its line, root not `<page>` errors out, an empty document reports the error with no parser part to append, an `<!ENTITY>` declaration is refused by name, an undefined entity reference stays a syntax error |
 | passthrough | Alpine / Vue / htmx / Livewire / Stimulus directives plus `class`/`id`/`style` forwarded; value escaping; interpolation inside values; single quotes stay readable |
 | `__event` | `__click` → `@click`; with modifiers (`__keydown.escape.window`); errors on a tag-less node; duplicate with `<attr name="@click">` errors |
 | hyphen interception | `x-on-click` / `x-bind-href` / `x-transition-enter` error out and give the colon-form suggestion; colon-less directives (`x-show`/`x-data`) unaffected |
@@ -768,6 +770,7 @@ section 的 `name` 在页面内必须唯一：section 表以名为键，重名�
 - 叶子节点的内容就是文本：嵌套任何其他标签都是编译错误，而不是静默丢掉标签、只留拼接文本。只有会输出标签的叶子（`heading`/`link`）才额外接受 `<attr>` 子元素——`text` 输出裸文本，没有可挂属性的位置；需要 HTML 时用 CDATA。
 - 未知属性、未知子元素、拼错的容器子元素（如 `<colum>`）**一律编译错误**，不静默丢弃；节点类型写错报"未知节点类型"。详见 §4.3 与 §9。
 - 容器只接受**子元素**。直接写在容器里的文本或 CDATA 够不到节点模型，因此是编译错误——请用 `<text>` 包裹；需要原样 HTML 时写 `<text><![CDATA[...]]></text>`。缩进产生的空白不算。
+- **实体声明**（`<!ENTITY …>`）是编译错误。外部实体永不会被取回，引用它只会展开成空、把值静默丢掉；内部实体却会展开，于是同样形态的两个引用行为不同。这里按名字拒掉声明（错误信息里会引用它），请把值直接写进文档。文档中未声明的引用仍由 libxml 报出：XML 语法错误。
 
 ### 4.3 属性透传
 
@@ -1174,6 +1177,7 @@ views/pages/users.page.xml: sections.content[2]: unknown node type "foo"
 |------|------|------|
 | XML 语法错误 | `simplexml_load_string` 失败；libxml 记录的**每一条**错误都列出并各带行号；源码含 `@attr` 时附修复提示；空文档是唯一 libxml 不报告的情况，此时消息不带解析器部分 | XML syntax error: line 1: error parsing attribute name; line 1: attributes construct error; … . XML attribute names cannot contain "@": write @click as __click (equivalent to x-on:click) |
 | 根元素错误 | 根元素不是 `<page>` | XML root element must be <page> |
+| 实体声明 | 源码声明了实体（`<!ENTITY …>`）。外部实体永不会被取回，引用它只会展开成空、把值静默丢掉；内部实体却会展开，两种写法相像而行为不同 | entity declarations are not supported: a reference to <!ENTITY xxe> would either expand to nothing (nothing external is ever fetched, so the value is dropped in silence) or pull a document into the page; write the value inline instead |
 | 结构错误 | 顶层规则违反、section 缺 name、option 缺 value | page: layout and body cannot be set together; use sections when layout is set |
 | title 冲突 | `title` 属性与 `title` section 同时设置页面标题——两者填的是同一个 section，同时保留会静默丢弃一个 | page: title and a "title" section both set the page title; keep one of them |
 | 模板名错误 | `layout` / 组件 `name` 不是视图根内的相对名——共享编译器的规则 | page: layout "../outside" must be a template name relative to the views root; empty, "." and ".." segments are not allowed |
@@ -1268,7 +1272,7 @@ composer 依赖说明：运行期实际执行的是生成的模板与内置组�
 | 内嵌结构 | `<field type="field">` 可通过，`<field type="column">` 报错 |
 | 字面量 | `label`、`empty`、`<option>` 等字面量字段写 `{{ }}` 报错 |
 | 模板层标记 | 文本里出现 `##` 时按模板层语法转义（产物含 `\##`）；单个 `#` 不需转义（共享层，前端侧同样可达） |
-| 解析 | XML 语法错误报错并列出 libxml 的每一条错误（各带行号）、根元素非 `<page>` 报错、空文档报错且不带解析器部分 |
+| 解析 | XML 语法错误报错并列出 libxml 的每一条错误（各带行号）、根元素非 `<page>` 报错、空文档报错且不带解析器部分、`<!ENTITY>` 声明按名字拒掉、未定义的实体引用仍报语法错误 |
 | 透传 | Alpine / Vue / htmx / Livewire / Stimulus 指令与 `class`/`id`/`style` 透传；值转义；值内插值；单引号保持可读 |
 | `__event` | `__click` → `@click`；带修饰符（`__keydown.escape.window`）；无标签节点上报错；与 `<attr name="@click">` 重复报错 |
 | 连字符拦截 | `x-on-click` / `x-bind-href` / `x-transition-enter` 报错且给出冒号形式建议；无冒号指令（`x-show`/`x-data`）不受影响 |

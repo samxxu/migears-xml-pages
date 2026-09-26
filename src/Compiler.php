@@ -75,6 +75,21 @@ class Compiler extends PagesCompiler
             }
         }
 
+        // An entity declaration is refused rather than parsed. LIBXML_NONET stops
+        // the parser fetching anything, so a reference to an external entity
+        // expands to nothing: the value disappears from the page and nothing says
+        // so, which is the loss this module exists to refuse. Internal entities
+        // would expand, so admitting declarations would make two references of the
+        // same shape behave differently. A page declaration is data, and has no use
+        // for either kind.
+        if (preg_match('/<!\s*ENTITY\s+([A-Za-z_:][-\w.:]*)/i', $source, $entity)) {
+            throw new CompileException(
+                "entity declarations are not supported: a reference to <!ENTITY {$entity[1]}> would either expand to "
+                . 'nothing (nothing external is ever fetched, so the value is dropped in silence) or pull a document '
+                . 'into the page; write the value inline instead'
+            );
+        }
+
         $prev = libxml_use_internal_errors(true);
         try {
             $xml = simplexml_load_string($source, SimpleXMLElement::class, LIBXML_NONET);

@@ -13,7 +13,7 @@ Sister package of `migears/yaml-pages`: the same declarative DSL expressed in XM
 ## Features
 
 - PHP 8.1+, PSR-4 autoloading, namespace `MiGears\XmlPages`
-- **Zero third-party dependencies** — XML parsing via built-in SimpleXML (libxml)
+- **No third-party packages** — XML parsing runs on the bundled SimpleXML (libxml); the one requirement is `migears/pages`, which owns the compiler this front end parses into
 - Declares page structure, data binding, conditionals (`if`), loops (`each`), form fields, table columns and layout inheritance
 - `{{ path }}` interpolation with auto-escaping — XSS protection inherited from the template engine
 - Compile-time validation of structure, fields, paths and attributes — nothing is silently dropped
@@ -128,6 +128,7 @@ Also:
 - Leaf nodes carry their content as text: nesting any other tag is a compile error rather than a silent loss of that tag. Only the leaves that emit a tag (`heading` / `link`) also accept `<attr>` children — `text` emits bare text, so it has nothing to mount an attribute on. Use CDATA for HTML.
 - Unknown attributes, unknown child elements and misspelled container children (`<colum>`) are **compile errors**, never silently ignored; a misspelled node type fails too. See *Front-end Framework Integration* and *Errors*.
 - Containers accept **child elements only**. Text or CDATA written directly inside one is unreachable from the node model, so it is a compile error rather than a silent drop — wrap it in `<text>` (use `<text><![CDATA[...]]></text>` for raw HTML). Indentation whitespace is ignored.
+- **Entity declarations** (`<!ENTITY …>`) are a compile error. Nothing external is ever fetched, so a reference to an external entity would expand to nothing and drop its value in silence; an internal entity would expand, so the two would look alike and behave differently. The declaration is refused by name and the value written inline instead.
 
 ## Front-end Framework Integration
 
@@ -422,7 +423,7 @@ MIT
 ## 特性
 
 - PHP 8.1+，PSR-4 自动加载，命名空间 `MiGears\XmlPages`
-- **零第三方依赖** —— 解析用 PHP 内置 SimpleXML（libxml）
+- **无第三方包** —— 解析走 PHP 内置 SimpleXML（libxml）；唯一依赖是 `migears/pages`，本前端解析出的节点模型由它持有的编译器处理
 - 声明页面结构、数据绑定、条件显示（`if`）、循环列表（`each`）、表单字段、表格列与 layout 继承
 - `{{ path }}` 插值自动转义 —— XSS 防护由模板引擎承担
 - 编译期校验结构、字段、路径与属性，**不静默丢弃任何东西**
@@ -537,6 +538,7 @@ php bin/xml-pages compile examples/full-featured.page.xml examples/views
 - 叶子节点的内容就是文本：嵌套其他标签是编译错误，而不是静默丢掉标签、只留拼接文本。只有会输出标签的叶子（`heading`/`link`）才额外接受 `<attr>` 子元素——`text` 输出裸文本，没有可挂属性的位置。需要 HTML 时用 CDATA。
 - 未知属性、未知子元素、拼错的容器子元素（如 `<colum>`）**一律编译错误**，不静默丢弃；节点类型写错同样报错。详见《前端框架集成》与《错误处理》。
 - 容器只接受**子元素**。直接写在容器里的文本或 CDATA 够不到节点模型，属编译错误而非静默丢弃——请用 `<text>` 包裹（原样 HTML 用 `<text><![CDATA[...]]></text>`）。缩进空白不算。
+- **实体声明**（`<!ENTITY …>`）是编译错误。外部实体永不会被取回，引用它只会展开成空、把值静默丢掉；内部实体却会展开——两者写法相像而行为不同。这里按名字拒掉声明，请把值直接写进文档。
 
 ## 前端框架集成
 

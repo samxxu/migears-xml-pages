@@ -506,6 +506,31 @@ final class CompilerTest extends TestCase
         $this->expectError('<page><body>', 'XML syntax error');
     }
 
+    public function testEntityDeclarationsAreRefused(): void
+    {
+        // Nothing external is ever fetched (LIBXML_NONET), so a reference to a
+        // declared external entity expands to nothing: the content vanished from
+        // the page with no word, which is the loss this module refuses. Internal
+        // entities would expand, so a declaration of either kind is refused here
+        // and the author is told which one.
+        $this->expectError(
+            '<!DOCTYPE page [<!ENTITY xxe SYSTEM "file:///etc/hostname">]><page><body><text>&xxe;</text></body></page>',
+            'a reference to <!ENTITY xxe> would either expand to nothing'
+        );
+        $this->expectError(
+            '<!DOCTYPE page [<!ENTITY brand "miGears">]><page><body><text>&brand;</text></body></page>',
+            'entity declarations are not supported'
+        );
+    }
+
+    public function testUndefinedEntityReferenceIsStillASyntaxError(): void
+    {
+        // With no declaration in the document there is nothing to refuse, and
+        // libxml names the reference itself: this is the half the parser already
+        // reports.
+        $this->expectError('<page><body><text>&xxe;</text></body></page>', 'XML syntax error');
+    }
+
     public function testSyntaxErrorReportsEveryParserError(): void
     {
         try {
