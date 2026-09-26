@@ -20,7 +20,8 @@
     },
     "require-dev": {
         "migears/template": "^2.0",
-        "phpunit/phpunit": "^10"
+        "phpunit/phpunit": "^10",
+        "phpstan/phpstan": "^2.2"
     },
     "bin": [
         "bin/xml-pages"
@@ -46,6 +47,7 @@
         }
     },
     "scripts": {
-        "test": "phpunit"
+        "test": "phpunit",
+        "analyse": "phpstan analyse"
     }
 }

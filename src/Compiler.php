@@ -114,7 +114,7 @@ class Compiler extends PagesCompiler
      * should not take three runs to fix, and the YAML frontend reports its whole
      * list the same way. libxml knows the line, so it is included.
      *
-     * @param list<LibXMLError> $errors
+     * @param list<\LibXMLError> $errors
      */
     private function formatLibxmlErrors(array $errors): string
     {
@@ -127,6 +127,7 @@ class Compiler extends PagesCompiler
         return $parts === [] ? '' : ': ' . implode('; ', $parts);
     }
 
+    /** @return array<string, mixed> */
     private function pageFromElement(SimpleXMLElement $page): array
     {
         $out = [];
@@ -188,6 +189,7 @@ class Compiler extends PagesCompiler
         return $list;
     }
 
+    /** @return list<array<string, mixed>> */
     private function nodesFromElement(SimpleXMLElement $parent, string $path, bool $allowAttr = false): array
     {
         if ($this->hasBareText($parent)) {
@@ -332,6 +334,7 @@ class Compiler extends PagesCompiler
         return false;
     }
 
+    /** @return array<string, mixed> */
     private function nodeFromElement(SimpleXMLElement $el, string $path): array
     {
         $type = $el->getName();
@@ -456,6 +459,7 @@ class Compiler extends PagesCompiler
         return $node;
     }
 
+    /** @return array<string, mixed> */
     private function fieldFromElement(SimpleXMLElement $el, string $path): array
     {
         $attrs = $this->readAttributes($el);
@@ -505,6 +509,7 @@ class Compiler extends PagesCompiler
         return $field;
     }
 
+    /** @return array<string, mixed> */
     private function columnFromElement(SimpleXMLElement $el, string $path): array
     {
         $attrs = $this->readAttributes($el);
@@ -645,6 +650,7 @@ class Compiler extends PagesCompiler
      * latter skip the whitelist and the '__' mapping, so their name is emitted
      * exactly as written.
      *
+     * @param array<string, mixed> $n
      * @param list<string> $dslFields
      * @return list<array{name: string, value: mixed, explicit: bool}>
      */
