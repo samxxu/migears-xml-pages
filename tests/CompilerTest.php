@@ -735,7 +735,24 @@ final class CompilerTest extends TestCase
 
     public function testAttrOnTaglessNodeRejected(): void
     {
-        $this->expectError('<page><body><text><attr name="@click" value="x"/>hi</text></body></page>', 'emits no tag');
+        // <attr> decorates a tag, so its parent has to emit one. The child
+        // whitelist now enforces that itself, instead of admitting the element and
+        // leaving the shared compiler to fail with the "emits no tag" wording.
+        $tagless = [
+            '<text><attr name="@click" value="x"/>hi</text>',
+            '<if when="a"><attr name="@click" value="x"/><then><text>t</text></then></if>',
+            '<each items="u"><attr name="@click" value="x"/><body><text>t</text></body></each>',
+            '<component name="card"><attr name="@click" value="x"/></component>',
+        ];
+        foreach ($tagless as $xml) {
+            try {
+                $this->compile('<page><body>' . $xml . '</body></page>');
+                $this->fail("{$xml} should have failed to compile");
+            } catch (CompileException $e) {
+                $this->assertStringContainsString('<attr> may only be a child of a node that emits a tag', $e->getMessage(), $xml);
+                $this->assertStringContainsString('heading / link / el / form / table / field / column', $e->getMessage(), $xml);
+            }
+        }
     }
 
     public function testAttrInContainerRejected(): void

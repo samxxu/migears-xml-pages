@@ -125,7 +125,7 @@ Also:
 - `{{ path }}` needs **no escaping in XML** — `{` / `}` are not XML-special. A plus over YAML.
 - `required` is read the way HTML reads a boolean attribute: `"true"` / `"1"` / `"yes"` / `"on"` (case-insensitive) are true, `"false"` / `"0"` / `"no"` / `"off"` are false, and `required=""` / `required="required"` both count as present. Any other spelling is a compile error — answering false would drop the attribute silently.
 - `level` and `rows` take decimal integers; a non-numeric value (`level="two"`) is a compile error, and range checks (`level` 1–6) stay with the shared compiler.
-- Leaf nodes (`text` / `heading` / `link`) accept only `<attr>` children: nesting any other tag is a compile error rather than a silent loss of that tag. Use CDATA for HTML.
+- Leaf nodes carry their content as text: nesting any other tag is a compile error rather than a silent loss of that tag. Only the leaves that emit a tag (`heading` / `link`) also accept `<attr>` children — `text` emits bare text, so it has nothing to mount an attribute on. Use CDATA for HTML.
 - Unknown attributes, unknown child elements and misspelled container children (`<colum>`) are **compile errors**, never silently ignored; a misspelled node type fails too. See *Front-end Framework Integration* and *Errors*.
 - Containers accept **child elements only**. Text or CDATA written directly inside one is unreachable from the node model, so it is a compile error rather than a silent drop — wrap it in `<text>` (use `<text><![CDATA[...]]></text>` for raw HTML). Indentation whitespace is ignored.
 
@@ -141,7 +141,7 @@ XML is stricter than HTML about attribute **names**: `@` is not a legal NameStar
    - the HTML hooks `class`, `id`, `style`
 3. **Everything else is a compile error** — treated as a typo, never dropped silently.
 
-Nodes that emit no tag of their own (`text`, `if`, `each`, `component`) reject forwarded attributes; wrap them in `<el>` instead. Forwarded values are HTML-escaped first and interpolated second, so `{{ }}` still works inside them (and single quotes stay readable instead of turning into `&#039;`).
+Nodes that emit no tag of their own (`text`, `if`, `each`, `component`) reject forwarded attributes and `<attr>` children — there is no tag to mount either on; wrap them in `<el>` instead. Forwarded values are HTML-escaped first and interpolated second, so `{{ }}` still works inside them (and single quotes stay readable instead of turning into `&#039;`).
 
 ### `__event` is `@event`
 
@@ -534,7 +534,7 @@ php bin/xml-pages compile examples/full-featured.page.xml examples/views
 - `{{ path }}` 插值在 XML 中**无需转义**——`{`、`}` 不是 XML 特殊字符，这是相对 YAML 的优势。
 - `required` 按 HTML 布尔属性语义解析：`"true"`/`"1"`/`"yes"`/`"on"`（大小写不敏感）为真，`"false"`/`"0"`/`"no"`/`"off"` 为假，`required=""` 与 `required="required"` 均视为「存在」。其余拼写一律编译错误——静默判假会把属性悄悄丢掉。
 - `level`、`rows` 解析为十进制整数；非数字值（如 `level="two"`）属编译错误，范围校验（如 `level` 为 1–6）仍由共享编译器负责。
-- 叶子节点（`text`/`heading`/`link`）内只允许 `<attr>` 子元素：嵌套其他标签是编译错误，而不是静默丢掉标签、只留拼接文本；需要 HTML 时用 CDATA。
+- 叶子节点的内容就是文本：嵌套其他标签是编译错误，而不是静默丢掉标签、只留拼接文本。只有会输出标签的叶子（`heading`/`link`）才额外接受 `<attr>` 子元素——`text` 输出裸文本，没有可挂属性的位置。需要 HTML 时用 CDATA。
 - 未知属性、未知子元素、拼错的容器子元素（如 `<colum>`）**一律编译错误**，不静默丢弃；节点类型写错同样报错。详见《前端框架集成》与《错误处理》。
 - 容器只接受**子元素**。直接写在容器里的文本或 CDATA 够不到节点模型，属编译错误而非静默丢弃——请用 `<text>` 包裹（原样 HTML 用 `<text><![CDATA[...]]></text>`）。缩进空白不算。
 
@@ -550,7 +550,7 @@ XML 在属性**名**上比 HTML 严格：`@` 不是合法的 NameStartChar，`:`
    - HTML 钩子：`class`、`id`、`style`
 3. **其余一律编译错误** —— 视为拼写错误，绝不静默丢弃。
 
-不输出标签的节点（`text`、`if`、`each`、`component`）不接受透传属性，用 `<el>` 包裹即可。透传值先转义、后插值，所以 `{{ }}` 在属性值里照常可用（且单引号保持可读，不会变成 `&#039;`）。
+不输出标签的节点（`text`、`if`、`each`、`component`）不接受透传属性，也不接受 `<attr>` 子元素——没有标签可挂，用 `<el>` 包裹即可。透传值先转义、后插值，所以 `{{ }}` 在属性值里照常可用（且单引号保持可读，不会变成 `&#039;`）。
 
 ### `__event` 就是 `@event`
 

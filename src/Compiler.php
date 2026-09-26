@@ -30,6 +30,18 @@ class Compiler extends PagesCompiler
     private const FALSE_VALUES = ['false', '0', 'no', 'off'];
 
     /**
+     * Node types that emit a tag of their own, and can therefore mount an
+     * attribute. Everything else (text / if / each / component) has nowhere to
+     * put one — the rule the shared compiler enforces with "emits no tag".
+     *
+     * The child whitelists are kept in step with that rule on purpose: a
+     * misplaced `<attr>` is then refused here, by the layer that owns the
+     * decision, instead of being admitted and failing later under another
+     * problem's wording.
+     */
+    private const TAG_EMITTING_NODES = ['heading', 'link', 'el', 'form', 'table', 'field', 'column'];
+
+    /**
      * An <attr> name is emitted verbatim, so it is the one attribute name this
      * package never checks against a whitelist. It still has to be a name a tag
      * can carry: whitespace, quotes, angle brackets, '/' and '=' all end the
@@ -171,8 +183,7 @@ class Compiler extends PagesCompiler
             if ($child->getName() === 'attr') {
                 // <attr> decorates the parent tag; it is not a content node.
                 if (! $allowAttr) {
-                    $this->error("{$path}: <attr> may only be a child of a node that emits a tag"
-                        . ' (heading / link / el / form / table / field / column)');
+                    $this->errorAttrMisplaced($path);
                 }
                 continue;
             }
@@ -199,10 +210,29 @@ class Compiler extends PagesCompiler
 
         foreach ($parent->children() as $child) {
             $name = $child->getName();
-            if (! in_array($name, $allowed, true)) {
-                $this->error("{$path}: disallowed child element <{$name}> (allowed: " . implode(' / ', $allowed) . ')');
+            if (in_array($name, $allowed, true)) {
+                continue;
             }
+            // <attr> is not a content node but a decoration for the parent's tag,
+            // so it gets its own message where it is not allowed — the whitelist it
+            // just missed may be empty (text) or unrelated (then / else).
+            if ($name === 'attr') {
+                $this->errorAttrMisplaced($path);
+            }
+            $hint = $allowed === [] ? '' : ' (allowed: ' . implode(' / ', $allowed) . ')';
+            $this->error("{$path}: disallowed child element <{$name}>{$hint}");
         }
+    }
+
+    /**
+     * The one wording for a misplaced <attr>, used by every site that can meet
+     * one: it decorates the parent's tag rather than joining the content, so the
+     * useful hint is where it may live, not which names this container accepts.
+     */
+    private function errorAttrMisplaced(string $path): never
+    {
+        $this->error("{$path}: <attr> may only be a child of a node that emits a tag ("
+            . implode(' / ', self::TAG_EMITTING_NODES) . ')');
     }
 
     /**
@@ -306,7 +336,7 @@ class Compiler extends PagesCompiler
         if ($type === 'el') {
             $node['body'] = $this->nodesFromElement($el, $path . '.body', true);
         } elseif ($type === 'if') {
-            $this->assertChildren($el, ['then', 'else', 'attr'], $path);
+            $this->assertChildren($el, ['then', 'else'], $path);
             $this->assertSingleChild($el, 'then', $path);
             $this->assertSingleChild($el, 'else', $path);
             if (isset($el->then)) {
@@ -318,7 +348,7 @@ class Compiler extends PagesCompiler
                 $node['else'] = $this->nodesFromElement($el->else, $path . '.else');
             }
         } elseif ($type === 'each') {
-            $this->assertChildren($el, ['body', 'attr'], $path);
+            $this->assertChildren($el, ['body'], $path);
             $this->assertSingleChild($el, 'body', $path);
             if (isset($el->body)) {
                 $this->assertNoAttributes($el->body, [], $path . '.body');
@@ -349,7 +379,7 @@ class Compiler extends PagesCompiler
                 $node['columns'] = $columns;
             }
         } elseif ($type === 'component') {
-            $this->assertChildren($el, ['data', 'attr'], $path);
+            $this->assertChildren($el, ['data'], $path);
             $this->assertSingleChild($el, 'data', $path);
             if (isset($el->data)) {
                 $this->assertNoAttributes($el->data, [], $path . '.data');
@@ -374,9 +404,15 @@ class Compiler extends PagesCompiler
             }
         } else {
             // Leaf nodes (text / heading / link / unknown): element text -> text field.
-            // Their text IS the content, so text is allowed; nested markup would
-            // lose its tags, so only <attr> may appear as a child element.
-            $this->assertChildren($el, ['attr'], $path, true);
+            // Their text IS the content, so text is allowed; nested markup would lose
+            // its tags, so the only legal child is <attr> — and only where the node
+            // emits a tag. <text> emits bare text, so it has nothing to mount on.
+            $this->assertChildren(
+                $el,
+                in_array($type, self::TAG_EMITTING_NODES, true) ? ['attr'] : [],
+                $path,
+                true
+            );
             $node['text'] = trim((string) $el);
         }
 

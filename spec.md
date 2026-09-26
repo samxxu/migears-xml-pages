@@ -117,7 +117,7 @@ Other notes:
 - `{{ path }}` interpolation needs **no escaping in XML** — `{` and `}` are not XML-special characters; this is a natural advantage over YAML.
 - `required` is read per HTML boolean-attribute semantics: `"true"`/`"1"`/`"yes"`/`"on"` (case-insensitive) are true, `"false"`/`"0"`/`"no"`/`"off"` are false, and both `required=""` and `required="required"` count as "present" (HTML's two present spellings). Any other spelling is a compile error — answering false would silently drop the attribute, which is exactly the silent drop this module forbids.
 - `level` and `rows` parse as decimal integers; a non-numeric value (e.g. `level="two"`) is a compile error, and range checks (e.g. `level` 1–6) still belong to the shared compiler.
-- Leaf nodes (`text`/`heading`/`link`) allow only `<attr>` children: nesting any other tag is a compile error, not a silent drop that leaves a concatenated string; use CDATA for HTML.
+- Leaf nodes carry their content as text: nesting any other tag is a compile error, not a silent drop that leaves a concatenated string. Only the leaves that emit a tag (`heading`/`link`) also accept `<attr>` children — `text` emits bare text, so it has nothing to mount an attribute on; use CDATA for HTML.
 - Unknown attributes, unknown child elements and misspelled container children (e.g. `<colum>`) are **always compile errors**, never silently dropped; a misspelled node type is reported as "unknown node type". See §4.3 and §9.
 - Containers accept **child elements only**. Text or CDATA written directly inside a container is unreachable from the node model and is therefore a compile error — wrap it in `<text>`; write `<text><![CDATA[...]]></text>` for raw HTML. Indentation whitespace does not count.
 
@@ -133,7 +133,7 @@ Attributes on a node are handled in three categories:
    - common HTML hooks: `class`, `id`, `style`, and `bind` (the front-end framework's binding attribute, whose value is a browser-side variable name)
 3. **Everything else is a compile error** — an unknown attribute is treated as a typo and never silently dropped (the old behavior silently swallowed directives, the most dangerous failure mode).
 
-Nodes that emit no tag (`text`, `if`, `each`, `component`) do not accept forwarded attributes; wrap them in `el`.
+Nodes that emit no tag (`text`, `if`, `each`, `component`) do not accept forwarded attributes, `<attr>` children included — there is no tag to hang either on; wrap them in `el`.
 
 **Wrapper elements** (`sections` / `body` / `then` / `else` / `fields` / `columns` / `data` / `options` / `content`) emit no tag either, so there is nothing for an attribute to attach to and they accept **no** attributes at all; any attribute on one is a compile error (`unknown attribute "class" on <section>`). The only wrapper spellings that mean something are whitelisted element by element: `<section>` takes only `name`, `<option>` only `value`, and `<attr>` only `name` / `value`. Everything else is treated as a typo, because a wrapper attribute used to vanish without a trace.
 
@@ -189,7 +189,7 @@ Compiles to:
 | `value` | required, supports `{{ }}` interpolation |
 | Duplicate | conflicts with an existing attribute of the same name is a compile error |
 | Field collision | colliding with the node's own DSL field is a compile error (e.g. `<attr name="href">` on a `<link>`) |
-| Misuse | being a direct child of a container (`body`/`then`/`content` etc.) is a compile error |
+| Misuse | being a direct child of a container (`body`/`then`/`content` etc.) or of a node that emits no tag (`text`/`if`/`each`/`component`) is a compile error |
 
 The `<attr>` name is not mapped, so it is both the canonical explicit way to write `@click` and the escape hatch when you need a literal `__xxx` attribute. When you can write the standard form directly, prefer a plain attribute (`x-on:click` or `__click`).
 
@@ -545,7 +545,7 @@ Error categories and their messages:
 | Brace disorder | interpolation contains `{{{` or `}}}` | 插值符号不能连续三个花括号 |
 | Bare text in a container | text or CDATA written directly inside a container (`body`/`then`/`else`/`content`/`section`/`el`/`sections`/`fields`/`columns`/`options`/`data`) | 不能直接写文本或 CDATA（会被丢弃），请用 <text> 包裹 |
 | `<attr>` with child content | `<attr>` has children or text | `<attr>` 只接受 name / value 属性，不能带子内容 |
-| `<attr>` misuse | missing name/value, duplicate with a same-named attribute, placed under a container | `<attr>` 只能作为会输出标签的节点的子元素 |
+| `<attr>` misuse | missing name/value, duplicate with a same-named attribute, or placed where no tag can mount it — a container (`body`/`then`/`content` etc.) or a node that emits no tag (`text`/`if`/`each`/`component`) | body[0].then: <attr> may only be a child of a node that emits a tag (heading / link / el / form / table / field / column) |
 | Wrapper element attribute | an attribute on a wrapper element (`sections` / `body` / `then` / `else` / `fields` / `columns` / `data` / `options` / `content`) beyond its whitelisted spelling (`section.name`, `option.value`, `attr.name` / `attr.value`) | unknown attribute "class" on <section> |
 | Data value is not text | a `<data>` key whose value contains child elements | "title" has child elements that would be dropped |
 | Illegal `<attr>` name | `<attr name>` contains whitespace, quotes, `<`, `>`, `/` or `=` | `<attr name="a b"> is not a legal attribute name; it is emitted exactly as written` |
@@ -624,7 +624,7 @@ Regression tests of the shared compilation layer (node grammar, interpolation, p
 | hyphen interception | `x-on-click` / `x-bind-href` / `x-transition-enter` error out and give the colon-form suggestion; colon-less directives (`x-show`/`x-data`) unaffected |
 | passthrough misuse | unknown attributes error; a tag-less node (`text`/`if`/`each`/`component`) carrying attributes errors; unknown page-root attribute errors; an attribute belonging to another element (`rows` / `required` on a non-field) reports the unknown attribute rather than an integer or boolean problem |
 | el | with children / empty children / missing tag errors / invalid tag errors |
-| attr | `@click` and similar shorthands reachable; missing name/value errors; same-name duplicate errors; placed under a container errors |
+| attr | `@click` and similar shorthands reachable; missing name/value errors; same-name duplicate errors; placement errors share one wording — a container and a node that emits no tag (`text`/`if`/`each`/`component`) both report `<attr> may only be a child of a node that emits a tag (heading / link / el / form / table / field / column)` |
 | child-element validation | unknown page-root child errors; leaf node with nested tag errors; misspelled container child errors (`<colum>` in `columns`, `<sectoin>` in `sections`, extra subtree in `if`, extra subtree in `each`, extra subtree in `component`) |
 | interpolation markers | `{{{ a }}}` / `{{ a }}}` / `{{{ a }}` error; adjacent `{{ a }}{{ b }}` still passes |
 | bare text in a container | bare text and CDATA in `el` / `then` / `else` / `body` / `content` / `section` / `sections` / `fields` / `columns` / `data` all error; indentation whitespace and leaf-node text unaffected |
@@ -764,7 +764,7 @@ section 的 `name` 在页面内必须唯一：section 表以名为键，重名�
 - `{{ path }}` 插值在 XML 中**无需转义**——`{`、`}` 不是 XML 特殊字符，这是相对 YAML 的天然优势。
 - `required` 按 HTML 布尔属性语义解析：`"true"`/`"1"`/`"yes"`/`"on"`（大小写不敏感）为真，`"false"`/`"0"`/`"no"`/`"off"` 为假，`required=""` 与 `required="required"` 均视为「存在」（HTML 的两种 present 写法）。其余拼写一律编译错误——静默判假会把属性悄悄丢掉，属本模块明令禁止的静默丢弃。
 - `level`、`rows` 解析为十进制整数；非数字值（如 `level="two"`）属编译错误，范围校验（如 `level` 为 1–6）仍由共享编译器负责。
-- 叶子节点（`text`/`heading`/`link`）内只允许 `<attr>` 子元素：嵌套任何其他标签都是编译错误，而不是静默丢掉标签、只留拼接文本；需要 HTML 时用 CDATA。
+- 叶子节点的内容就是文本：嵌套任何其他标签都是编译错误，而不是静默丢掉标签、只留拼接文本。只有会输出标签的叶子（`heading`/`link`）才额外接受 `<attr>` 子元素——`text` 输出裸文本，没有可挂属性的位置；需要 HTML 时用 CDATA。
 - 未知属性、未知子元素、拼错的容器子元素（如 `<colum>`）**一律编译错误**，不静默丢弃；节点类型写错报"未知节点类型"。详见 §4.3 与 §9。
 - 容器只接受**子元素**。直接写在容器里的文本或 CDATA 够不到节点模型，因此是编译错误——请用 `<text>` 包裹；需要原样 HTML 时写 `<text><![CDATA[...]]></text>`。缩进产生的空白不算。
 
@@ -780,7 +780,7 @@ section 的 `name` 在页面内必须唯一：section 表以名为键，重名�
    - 常用 HTML 钩子：`class`、`id`、`style`，以及 `bind`（前端框架的绑定属性，值是浏览器端变量名）
 3. **其余一律编译错误**——未知属性视为拼写错误，绝不静默丢弃（旧行为会静默吞掉指令，是最危险的失败模式）。
 
-不输出标签的节点（`text`、`if`、`each`、`component`）不接受透传属性，需用 `el` 包裹。
+不输出标签的节点（`text`、`if`、`each`、`component`）不接受透传属性，也不接受 `<attr>` 子元素——没有标签可挂，需用 `el` 包裹。
 
 **包装元素**（`sections` / `body` / `then` / `else` / `fields` / `columns` / `data` / `options` / `content`）同样不输出标签，属性没有可挂载之处，因此**不接受任何属性**；在它们上面写属性即编译错误（`unknown attribute "class" on <section>`）。只有少数拼写确有含义，按元素逐个白名单化：`<section>` 只接受 `name`，`<option>` 只接受 `value`，`<attr>` 只接受 `name` / `value`。其余一律按拼写错误处理——包装元素上的属性此前会无声消失。
 
@@ -836,7 +836,7 @@ XML 在属性名上比 HTML 严格：`:` 属于保留的命名空间分隔符，
 | `value` | 必填，支持 `{{ }}` 插值 |
 | 重复 | 与已有的同名属性冲突即编译错误 |
 | 撞字段 | 与节点的 DSL 字段同名即编译错误（如 `<link>` 上写 `<attr name="href">`） |
-| 误用 | 作为容器（`body`/`then`/`content` 等）的直接子元素即编译错误 |
+| 误用 | 作为容器（`body`/`then`/`content` 等）或不输出标签的节点（`text`/`if`/`each`/`component`）的直接子元素即编译错误 |
 
 `<attr>` 的 name 不做映射，因此它既是 `@click` 的规范显式写法，也是需要字面 `__xxx` 属性时的出口。顺手能写标准形式时优先直接写属性（`x-on:click` 或 `__click`）。
 
@@ -1192,7 +1192,7 @@ views/pages/users.page.xml: sections.content[2]: 未知节点类型 "foo"
 | 花括号错乱 | 插值出现 `{{{` 或 `}}}` | 插值符号不能连续三个花括号 |
 | 容器内裸文本 | 容器（`body`/`then`/`else`/`content`/`section`/`el`/`sections`/`fields`/`columns`/`options`/`data`）里直接写文本或 CDATA | 不能直接写文本或 CDATA（会被丢弃），请用 <text> 包裹 |
 | `<attr>` 带子内容 | `<attr>` 有子元素或文本 | `<attr>` 只接受 name / value 属性，不能带子内容 |
-| `<attr>` 误用 | 缺 name/value、与同名属性重复、出现在容器下 | `<attr>` 只能作为会输出标签的节点的子元素 |
+| `<attr>` 误用 | 缺 name/value、与同名属性重复，或出现在没有标签可挂的位置——容器（`body`/`then`/`content` 等）或不输出标签的节点（`text`/`if`/`each`/`component`） | body[0].then: <attr> may only be a child of a node that emits a tag (heading / link / el / form / table / field / column) |
 | 包装元素带属性 | 包装元素（`sections` / `body` / `then` / `else` / `fields` / `columns` / `data` / `options` / `content`）上出现其白名单拼写（`section.name`、`option.value`、`attr.name` / `attr.value`）之外的属性 | unknown attribute "class" on <section> |
 | data 值不是文本 | 某个 `<data>` 键的值含子元素 | "title" has child elements that would be dropped |
 | `<attr>` 名非法 | `<attr name>` 含空白、引号、`<`、`>`、`/`、`=` | `<attr name="a b"> is not a legal attribute name; it is emitted exactly as written` |
@@ -1271,7 +1271,7 @@ composer 依赖说明：运行期实际执行的是生成的模板与内置组�
 | 连字符拦截 | `x-on-click` / `x-bind-href` / `x-transition-enter` 报错且给出冒号形式建议；无冒号指令（`x-show`/`x-data`）不受影响 |
 | 透传误用 | 未知属性报错；无标签节点（`text`/`if`/`each`/`component`）承载属性报错；页面根未知属性报错；属于别的元素的属性（`rows` / `required` 出现在非 field 上）报未知属性，而不是整数或布尔错误 |
 | el | 带子节点 / 空子节点 / 缺 tag 报错 / 非法 tag 报错 |
-| attr | `@click` 等简写可达；缺 name/value 报错；同名重复报错；写在容器下报错 |
+| attr | `@click` 等简写可达；缺 name/value 报错；同名重复报错；错位放置共用一句措辞——容器与不输出标签的节点（`text`/`if`/`each`/`component`）都报 `<attr> may only be a child of a node that emits a tag (heading / link / el / form / table / field / column)` |
 | 子元素校验 | 页面根未知子元素报错；叶子节点嵌套标签报错；容器拼错子元素报错（`columns` 的 `<colum>`、`sections` 的 `<sectoin>`、`if` 的多余子树、`each` 的多余子树、`component` 的多余子树） |
 | 插值符号 | `{{{ a }}}` / `{{ a }}}` / `{{{ a }}` 报错；相邻的 `{{ a }}{{ b }}` 仍放行 |
 | 容器内裸文本 | `el` / `then` / `else` / `body` / `content` / `section` / `sections` / `fields` / `columns` / `data` 里的裸文本与 CDATA 一律报错；缩进空白与叶子节点文本不受影响 |
