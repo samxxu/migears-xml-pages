@@ -404,7 +404,7 @@ XML syntax error: line 1: error parsing attribute name; line 1: attributes const
 composer test
 ```
 
-Unit tests assert exact compiled output; integration tests render the compiled page through the full miGears Template pipeline. With `migears/yaml-pages` checked out beside this package, `FrontEndParityTest` compiles the same page written in both syntaxes and requires the two artefacts to be identical — every fixture under `tests/fixtures/pages` has a YAML twin, and every one under `tests/fixtures/errors` must be refused with the same message.
+Unit tests assert exact compiled output; integration tests render the compiled page through the full miGears Template pipeline. With `migears/yaml-pages` checked out beside this package, `FrontEndParityTest` compiles the same page written in both syntaxes and requires the two artifacts to be identical — every fixture under `tests/fixtures/pages` has a YAML twin, and every one under `tests/fixtures/errors` must be refused with the same message.
 
 ## License
 

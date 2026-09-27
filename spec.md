@@ -588,7 +588,7 @@ migears-xml-pages/
     ├── CliTest.php
     ├── IntegrationTest.php
     ├── BundledComponentsTest.php   cross-package copy consistency (checked on same-repo checkout, skipped on standalone install)
-    ├── FrontEndParityTest.php      the same page written in both syntaxes must compile to the same artefact (same conditions)
+    ├── FrontEndParityTest.php      the same page written in both syntaxes must compile to the same artifact (same conditions)
     └── fixtures/
         ├── pages/           .page.xml input samples
         ├── errors/          .page.xml samples that must be refused, paired as above
@@ -640,7 +640,7 @@ Regression tests of the shared compilation layer (node grammar, interpolation, p
 | Installation | missing Composer autoloader / missing `ext-simplexml` / missing `ext-dom` / an unexpected `Error`: one stderr line, exit code 1, no stack trace; `--help` still answers |
 | integration | the compiled artifact renders successfully after TemplateCompiler's second compilation (tested against migears/template) |
 | copy consistency | built-in components byte-identical to `migears/yaml-pages` (checked on same-repo checkout, skipped on standalone install) |
-| front-end parity | the same page written in both syntaxes compiles to the same artefact, and the same mistake is refused with the same message; corpus in `tests/fixtures/pages` and `tests/fixtures/errors`, each half mirrored in `migears/yaml-pages` (checked on same-repo checkout, skipped on standalone install) |
+| front-end parity | the same page written in both syntaxes compiles to the same artifact, and the same mistake is refused with the same message; corpus in `tests/fixtures/pages` and `tests/fixtures/errors`, each half mirrored in `migears/yaml-pages` (checked on same-repo checkout, skipped on standalone install) |
 
 ## 12. Explicitly Out of Scope (Future Candidates)
 
