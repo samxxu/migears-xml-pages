@@ -27,19 +27,19 @@ jobs:
 
     steps:
       - name: Check out this package
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: migears-xml-pages
 
       # Their default branches, so the trio moves together.
       - name: Check out migears-pages
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ github.repository_owner }}/migears-pages
           path: migears-pages
 
       - name: Check out migears-template
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ github.repository_owner }}/migears-template
           path: migears-template
@@ -50,7 +50,7 @@ jobs:
       # meant to be byte-for-byte identical, and a silent skip would report that
       # check as passing while running none of it.
       - name: Check out migears-yaml-pages
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ github.repository_owner }}/migears-yaml-pages
           path: migears-yaml-pages
