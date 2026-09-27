@@ -55,7 +55,7 @@ Both compilations matter. Neither is merged nor elided.
 
 ### 3.3 Extremely lightweight
 
-The implementation stays at the thousand-line scale (this package's parsing layer is about 500 lines — all compilation logic lives in the migears/pages shared layer, about 1050 lines; the CLI is about 110 lines; components are plain template PHP files). Any feature that would significantly bloat the implementation is rejected.
+The implementation stays at the thousand-line scale, and any feature that would significantly bloat it is rejected. Where the lines are is what matters, not how many: this package only parses its own syntax into the array IR, all compilation logic lives in the migears/pages shared layer, the CLI is a thin wrapper, and components are plain template PHP files. Exact counts are measured by the review report rather than quoted here — a number written into prose is a number that goes stale.
 
 ### 3.4 Compile is validation
 
@@ -86,9 +86,9 @@ The root element must be `<page>`, whose attributes are the top-level fields and
 
 Rules: when `layout` is present, `sections` is required and `body` is forbidden; when `layout` is absent, `body` is required and `sections` is forbidden. Violating this is a compile error.
 
-A `<section>` must have a `name` attribute; its children form the node-tree array. When the `title` attribute is present, a `title` section is generated automatically (only effective with `layout`; ignored with a warning when there is no `layout`). Both spellings fill that one section, so writing the `title` attribute and a `title` section together is a compile error rather than a silent win for one of them.
+A `<section>` must have a `name` attribute; its children form the node-tree array. When the `title` attribute is present, a `title` section is generated automatically (only effective with `layout`: without one the title is dropped, and a notice goes to the compiler's warn callback — the default `new Compiler()` takes no callback, so nothing is reported at all). Both spellings fill that one section, so writing the `title` attribute and a `title` section together is a compile error rather than a silent win for one of them.
 
-A section's `name` must be unique within the page: the section map is keyed by name, so a repeat would silently collapse two sections into one, and a duplicate is therefore a compile error (`is defined more than once; a section name may only appear once`). Surrounding whitespace around the name is trimmed like every other text field (a stray space would never match the layout section it is meant to fill); a name that trims to empty counts as the attribute being absent and errors the same way as a missing `name`.
+A section's `name` must be unique within the page: the section map is keyed by name, so a repeat would silently collapse two sections into one, and a duplicate is therefore a compile error (`is defined more than once; a section name may only appear once`). Surrounding whitespace around the name is trimmed like every other text field (a stray space would never match the layout section it is meant to fill). A name that trims to empty is not a missing attribute — the attribute is there and its value is what is wrong — so the value is handed to the shared layer, which names it: `section name '  ' is empty; a layout can only fill a named section`, the same wording the YAML front end uses for the same mistake.
 
 ### 4.2 XML writing notes
 
@@ -571,7 +571,7 @@ migears-xml-pages/
 ├── bin/
 │   └── xml-pages            CLI entry point
 ├── src/
-│   ├── Compiler.php         XML parsing layer (XML → array IR, ~500 lines), extends migears/pages' shared compiler
+│   ├── Compiler.php         XML parsing layer (XML → array IR), extends migears/pages' shared compiler
 │   └── Exception/
 │       └── CompileException.php
 ├── components/              built-in component templates
@@ -709,7 +709,7 @@ xml-pages 是 miGears 框架的可选配套模块：一种基于 XML 的声明�
 
 ### 3.3 极轻量
 
-实现规模保持在千行量级（本包解析层约 500 行——编译逻辑全部在 migears/pages 共享层约 1050 行；CLI 约 110 行，组件为纯模板 PHP 文件）。任何让实现显著膨胀的特性都拒绝。
+实现规模保持在千行量级，任何让实现显著膨胀的特性都拒绝。重要的是代码分布在哪，而不是行数：本包只把自己的语法解析成数组 IR，编译逻辑全部在 migears/pages 共享层，CLI 是薄封装，组件是纯模板 PHP 文件。具体行数由评审报告实测，这里不抄写——写进散文里的数字必然会过期。
 
 ### 3.4 编译即校验
 
@@ -740,9 +740,9 @@ xml-pages 是 miGears 框架的可选配套模块：一种基于 XML 的声明�
 
 规则：`layout` 存在时 `sections` 必填、`body` 禁用；`layout` 不存在时 `body` 必填、`sections` 禁用。违反即编译错误。
 
-`<section>` 必须有 `name` 属性，其子元素即节点树数组。`title` 属性存在时自动生成一个 `title` section（仅在有 `layout` 时生效，无 layout 时忽略并告警）。两种写法填的是同一个 section，因此同时写出 `title` 属性与 `title` section 属编译错误，而不是静默让其中一方胜出。
+`<section>` 必须有 `name` 属性，其子元素即节点树数组。`title` 属性存在时自动生成一个 `title` section（仅在有 `layout` 时生效；无 layout 时 title 被丢弃，并给编译器的 warn 回调一条提示——默认 `new Compiler()` 不接收回调，因此什么都不报）。两种写法填的是同一个 section，因此同时写出 `title` 属性与 `title` section 属编译错误，而不是静默让其中一方胜出。
 
-section 的 `name` 在页面内必须唯一：section 表以名为键，重名会把两个 section 静默折成一个，因此重名是编译错误（`is defined more than once; a section name may only appear once`）。名称两侧空白会像其他文本字段一样被裁掉（残留的空格永远匹配不上它要填充的那个布局 section）；裁掉空白后为空的名称视为该属性缺失，按缺失 `name` 报同样的错。
+section 的 `name` 在页面内必须唯一：section 表以名为键，重名会把两个 section 静默折成一个，因此重名是编译错误（`is defined more than once; a section name may only appear once`）。名称两侧空白会像其他文本字段一样被裁掉（残留的空格永远匹配不上它要填充的那个布局 section）。裁掉空白后为空的名称不算属性缺失——属性在、错的是值——因此把原值交给共享层，由它报错：`section name '  ' is empty; a layout can only fill a named section`，与 YAML 前端对同一错误的文案一致。
 
 ### 4.2 XML 编写注意
 
@@ -1225,7 +1225,7 @@ migears-xml-pages/
 ├── bin/
 │   └── xml-pages            CLI 入口
 ├── src/
-│   ├── Compiler.php         XML 解析层（XML → 数组 IR，约 500 行），继承 migears/pages 的共享编译器
+│   ├── Compiler.php         XML 解析层（XML → 数组 IR），继承 migears/pages 的共享编译器
 │   └── Exception/
 │       └── CompileException.php
 ├── components/              内置组件模板

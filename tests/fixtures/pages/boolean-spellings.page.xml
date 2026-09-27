@@ -1,0 +1,5 @@
+<!-- One contract, two source languages spell a boolean differently: YAML has the
+     type (required: true), XML has only strings and follows HTML's boolean
+     attributes (required="yes"). The artefact is the same either way, and this pair
+     is in the corpus so the two spellings cannot drift into two outcomes. -->
+<page><body><form action="/save"><fields><field name="q" label="Q" required="yes"/></fields></form></body></page>
