@@ -1165,8 +1165,27 @@ final class CompilerTest extends TestCase
             $this->compile('<page layout="layout/main"><sections><section name=" content "><text>A</text></section></sections></page>')
         );
         $this->expectError(
-            '<page layout="layout/main"><sections><section name=""><text>A</text></section></sections></page>',
-            'section is missing its name attribute'
+            '<page layout="layout/main"><sections><section name="  "><text>A</text></section></sections></page>',
+            "sections: section name '  ' is empty; a layout can only fill a named section"
+        );
+    }
+
+    public function testEntityDeclarationsWrittenAsTextAreNotDeclarations(): void
+    {
+        // A comment and a CDATA section can only hold text, never a declaration, so
+        // the scan skips both: a page that merely talks about the syntax has to be
+        // able to write the shape down. The declaration below is real and still goes.
+        $this->assertStringNotContainsString(
+            'ENTITY',
+            $this->compile('<page><!-- <!ENTITY x "y"> --><body><text>A</text></body></page>')
+        );
+        $this->assertStringContainsString(
+            '<!ENTITY x "y">',
+            $this->compile('<page><body><text><![CDATA[<!ENTITY x "y">]]></text></body></page>')
+        );
+        $this->expectError(
+            '<!-- <!ENTITY x "y"> --><!DOCTYPE page [<!ENTITY real SYSTEM "file:///etc/hostname">]><page><body><text>&real;</text></body></page>',
+            'a reference to <!ENTITY real> would either expand to nothing'
         );
     }
 

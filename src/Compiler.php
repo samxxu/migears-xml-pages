@@ -82,7 +82,14 @@ class Compiler extends PagesCompiler
         // would expand, so admitting declarations would make two references of the
         // same shape behave differently. A page declaration is data, and has no use
         // for either kind.
-        if (preg_match('/<!\s*ENTITY\s+([A-Za-z_:][-\w.:]*)/i', $source, $entity)) {
+        //
+        // A comment and a CDATA section can only hold text, never a declaration —
+        // both are removed before the scan, or a page that merely talks about entity
+        // declarations would be refused for writing them down. Anything else is
+        // scanned as written, unterminated markers included: there the shapes are
+        // still reachable, and refusing is the safe direction.
+        $scanned = preg_replace(['~<!--.*?-->~s', '~<!\[CDATA\[.*?\]\]>~s'], '', $source);
+        if ($scanned !== null && preg_match('/<!\s*ENTITY\s+([A-Za-z_:][-\w.:]*)/i', $scanned, $entity)) {
             throw new CompileException(
                 "entity declarations are not supported: a reference to <!ENTITY {$entity[1]}> would either expand to "
                 . 'nothing (nothing external is ever fetched, so the value is dropped in silence) or pull a document '
@@ -165,14 +172,22 @@ class Compiler extends PagesCompiler
             $this->assertChildren($page->sections, ['section'], 'sections');
             $sections = [];
             foreach ($this->childList($page->sections, 'section') as $i => $section) {
-                if (! isset($section['name']) || trim((string) $section['name']) === '') {
+                if (! isset($section['name'])) {
                     $this->error("sections[{$i}]: section is missing its name attribute");
                 }
                 $this->assertNoAttributes($section, ['name'], "sections[{$i}]");
-                // Trimmed like every other text field: a name with stray spaces
-                // would never match the layout section it is meant to fill, and
-                // the mismatch would only show up as a blank area in the page.
-                $name = trim((string) $section['name']);
+                // A name that is there but blank is not a missing attribute: it is the
+                // empty name the shared layer refuses, and the parity corpus compares
+                // the wording of a shared rule, so the value is handed on as written
+                // and the shared check speaks. Only a name with content is trimmed
+                // here, where the trimming decides which layout section gets filled.
+                $raw = (string) $section['name'];
+                $name = trim($raw);
+                if ($name === '') {
+                    $sections[$raw] = $this->nodesFromElement($section, 'sections.' . $name);
+
+                    continue;
+                }
                 if (array_key_exists($name, $sections)) {
                     $this->error("sections[{$i}]: <section name=\"{$name}\"> is defined more than once; a section name may only appear once");
                 }
