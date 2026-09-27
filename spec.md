@@ -601,7 +601,7 @@ Copy notes: `components/*.php` and `bin/xml-pages` are byte-identical to the sib
 
 ## 11. Test Plan (TDD)
 
-Unit tests are driven by XML strings/fixtures: input a `.page.xml`, assert the compiled artifact is exactly identical to the expected `.tpl.php` (or contains the specified fragments).
+Unit tests are driven by XML strings/fixtures: input a `.page.xml`, assert the compiled artifact is exactly identical to the expected `.tpl.php` (or contains the specified fragments). The suite sets `failOnWarning`, `failOnNotice`, `failOnDeprecation`, `failOnRisky` and `beStrictAboutOutputDuringTests`, so a leaked PHP warning, notice or deprecation fails the run and so does a test that prints; `failOnSkipped` is left to CI, where the cross-package checks have their sibling checked out and a skip means the checkout is missing.
 
 Regression tests of the shared compilation layer (node grammar, interpolation, passthrough, the base behavior of validation) are carried by migears/pages' CompilerTest; this package's tests focus on XML parsing and the overall behavior after inheritance.
 
@@ -1255,7 +1255,7 @@ composer 依赖说明：运行期实际执行的是生成的模板与内置组�
 
 ## 11. 测试计划（TDD）
 
-单元测试以 XML 字符串/fixtures 驱动：输入 `.page.xml`，断言编译产物与期望 `.tpl.php` 完全一致（或含指定片段）。
+单元测试以 XML 字符串/fixtures 驱动：输入 `.page.xml`，断言编译产物与期望 `.tpl.php` 完全一致（或含指定片段）。测试套件设置 `failOnWarning`、`failOnNotice`、`failOnDeprecation`、`failOnRisky` 与 `beStrictAboutOutputDuringTests`：泄漏的 PHP 警告、通知、弃用都会让本轮失败，测试里打印输出同样失败；`failOnSkipped` 交给 CI——在那里跨包检查所需的兄弟包已检出，一旦跳过就说明检出缺失。
 
 共享编译层的回归测试（节点文法、插值、透传、校验的基类行为）由 migears/pages 的 CompilerTest 承担；本包测试聚焦 XML 解析与继承后的整体行为。
 

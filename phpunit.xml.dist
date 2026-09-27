@@ -3,7 +3,18 @@
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="vendor/autoload.php"
          colors="true"
-         cacheDirectory=".phpunit.cache">
+         cacheDirectory=".phpunit.cache"
+         failOnWarning="true"
+         failOnNotice="true"
+         failOnDeprecation="true"
+         failOnRisky="true"
+         beStrictAboutOutputDuringTests="true"
+         displayDetailsOnTestsThatTriggerWarnings="true"
+         displayDetailsOnTestsThatTriggerNotices="true"
+         displayDetailsOnTestsThatTriggerDeprecations="true">
+    <!-- failOnSkipped is left to CI, which asks for it on the command line: the
+         cross-package checks skip when the other front end is not checked out,
+         and that skip is the one that must never pass quietly. -->
     <testsuites>
         <testsuite name="migears-xml-pages">
             <directory>tests</directory>
