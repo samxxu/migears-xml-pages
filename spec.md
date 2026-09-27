@@ -588,8 +588,10 @@ migears-xml-pages/
     ├── CliTest.php
     ├── IntegrationTest.php
     ├── BundledComponentsTest.php   cross-package copy consistency (checked on same-repo checkout, skipped on standalone install)
+    ├── FrontEndParityTest.php      the same page written in both syntaxes must compile to the same artefact (same conditions)
     └── fixtures/
         ├── pages/           .page.xml input samples
+        ├── errors/          .page.xml samples that must be refused, paired as above
         └── views/           layouts for integration tests
 ```
 
@@ -638,6 +640,7 @@ Regression tests of the shared compilation layer (node grammar, interpolation, p
 | Installation | missing Composer autoloader / missing `ext-simplexml` / missing `ext-dom` / an unexpected `Error`: one stderr line, exit code 1, no stack trace; `--help` still answers |
 | integration | the compiled artifact renders successfully after TemplateCompiler's second compilation (tested against migears/template) |
 | copy consistency | built-in components byte-identical to `migears/yaml-pages` (checked on same-repo checkout, skipped on standalone install) |
+| front-end parity | the same page written in both syntaxes compiles to the same artefact, and the same mistake is refused with the same message; corpus in `tests/fixtures/pages` and `tests/fixtures/errors`, each half mirrored in `migears/yaml-pages` (checked on same-repo checkout, skipped on standalone install) |
 
 ## 12. Explicitly Out of Scope (Future Candidates)
 
@@ -1239,8 +1242,10 @@ migears-xml-pages/
     ├── CliTest.php
     ├── IntegrationTest.php
     ├── BundledComponentsTest.php   跨包副本一致性（同仓检出时校验，独立安装时跳过）
+    ├── FrontEndParityTest.php      同一页面用两种语法写出，编译产物必须一致（同样条件）
     └── fixtures/
         ├── pages/           .page.xml 输入样例
+        ├── errors/          必须被拒的 .page.xml 样例，配对方式同上
         └── views/           集成测试用布局
 ```
 
@@ -1289,6 +1294,7 @@ composer 依赖说明：运行期实际执行的是生成的模板与内置组�
 | 安装环境 | 缺 Composer autoloader / 缺 `ext-simplexml` / 缺 `ext-dom` / 未预料 `Error`：stderr 一行、退出码 1、无调用栈；`--help` 仍可响应 |
 | 集成 | 编译产物经 TemplateCompiler 二次编译后渲染成功（与 migears/template 联测） |
 | 副本一致性 | 内置组件与 `migears/yaml-pages` 逐字相同（同仓检出时校验，独立安装时跳过） |
+| 双前端对拍 | 同一页面用两种语法写出，编译产物逐字节相同；同一个错误被拒时消息也相同。语料在 `tests/fixtures/pages` 与 `tests/fixtures/errors`，每一半镜像于 `migears/yaml-pages`（同仓检出时校验，独立安装时跳过） |
 
 ## 12. 明确不做（后续候选）
 

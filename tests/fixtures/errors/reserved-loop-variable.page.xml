@@ -1,0 +1,1 @@
+<page><body><each items="users" as="this"><body><text>a</text></body></each></body></page>

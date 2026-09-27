@@ -1,0 +1,41 @@
+<page layout="layout/main" title="Users">
+    <sections>
+        <section name=" content ">
+            <heading level="2">List</heading>
+            <text>Total: {{ total }}</text>
+            <each items="users" as="u" index="i">
+                <body>
+                    <link href="/u/{{ u.id }}">{{ u.name }}</link>
+                </body>
+            </each>
+            <if when="admin">
+                <then><text>Admin</text></then>
+                <else/>
+            </if>
+            <table items="users" as="row" empty="None">
+                <columns>
+                    <column label="Name" pop="{{ row.name }}"/>
+                    <column label="Actions">
+                        <content><text>Edit</text></content>
+                    </column>
+                </columns>
+            </table>
+            <form action="/s">
+                <fields>
+                    <field name="q" label="Search" placeholder="Name"/>
+                    <field name="role" label="Role" input="select">
+                        <options><option value="a">A</option></options>
+                    </field>
+                    <field name="bio" label="Bio" input="textarea" rows="3"/>
+                    <field name="ok" label="Active" input="checkbox"/>
+                </fields>
+            </form>
+            <el tag="div" class="wrap" data-x="y">
+                <component name="card">
+                    <data><title>{{ title }}</title></data>
+                </component>
+                <component name="badge"/>
+            </el>
+        </section>
+    </sections>
+</page>

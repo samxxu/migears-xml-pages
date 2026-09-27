@@ -1,0 +1,1 @@
+<page><body><table items="u" as="row" empty="{{ x }}"><columns><column label="A" pop="{{ row.a }}"/></columns></table></body></page>

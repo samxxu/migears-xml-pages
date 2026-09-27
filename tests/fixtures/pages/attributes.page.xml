@@ -1,0 +1,6 @@
+<page><body>
+    <el tag="div" class="wrap" x-on:click="open" data-x="quoted">
+        <attr name="@click.prevent" value="save"/>
+        <text>Body</text>
+    </el>
+</body></page>
