@@ -88,8 +88,15 @@ class Compiler extends PagesCompiler
         // declarations would be refused for writing them down. Anything else is
         // scanned as written, unterminated markers included: there the shapes are
         // still reachable, and refusing is the safe direction.
+        //
+        // The declaration is recognised by its keyword and the name token that
+        // follows, never by an ASCII spelling of that name: XML names may begin
+        // with any letter, so an ASCII-only class let `<!ENTITY é …>` through
+        // while the parser declared it and expanded the reference — the silent
+        // loss this guard exists to refuse, and the parameter-entity form
+        // (`<!ENTITY % …>`) slipped past the same way.
         $scanned = preg_replace(['~<!--.*?-->~s', '~<!\[CDATA\[.*?\]\]>~s'], '', $source);
-        if ($scanned !== null && preg_match('/<!\s*ENTITY\s+([A-Za-z_:][-\w.:]*)/i', $scanned, $entity)) {
+        if ($scanned !== null && preg_match('/<!\s*ENTITY\s+(?:%\s*)?([^\s>]+)/i', $scanned, $entity)) {
             throw new CompileException(
                 "entity declarations are not supported: a reference to <!ENTITY {$entity[1]}> would either expand to "
                 . 'nothing (nothing external is ever fetched, so the value is dropped in silence) or pull a document '

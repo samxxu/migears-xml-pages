@@ -9,7 +9,7 @@ xml-pages is an optional companion module for the miGears framework: an XML-base
 
 It is **two input formats for the same DSL** as `migears/yaml-pages`: the node model (body / sections / field / column / component data) and the compiled output are completely identical; only the parsing layer differs. Both exist and the user picks one.
 
-Both are **syntax frontends** for `migears/pages`: after each parses its own format into an array IR, node compilation, validation, interpolation and attribute passthrough are all done by the shared compiler in the pages package (see migears/pages' spec.md for the IR contract). This package keeps only the XML parsing layer and a few spelling hooks.
+Both are **syntax frontends** for `migears/pages`: after each parses its own format into an array IR, node compilation, validation, interpolation and attribute passthrough are all done by the shared compiler in the pages package (see migears/pages' SPEC.md for the IR contract). This package keeps only the XML parsing layer and a few spelling hooks.
 
 It solves three problems:
 
@@ -17,7 +17,7 @@ It solves three problems:
 2. **Readable page structure** — what a page looks like and which data it binds is clear at a glance from the XML, so non-developers can participate too.
 3. **Extend rather than replace** — migears/template itself is minimal and limited; xml-pages fixes common page shapes (lists, forms, conditionals, loops) with a declarative abstraction, letting business development focus on data and structure.
 
-## 2. Scope
+## 2. Boundaries
 
 ### 2.1 In scope
 
@@ -663,7 +663,7 @@ xml-pages 是 miGears 框架的可选配套模块：一种基于 XML 的声明�
 
 它与 `migears/yaml-pages` 是**同一 DSL 的两种输入格式**：节点模型（body / sections / field / column / component data）与编译产物完全一致，仅解析层不同。两者同时存在，由用户二选一。
 
-两者都是 `migears/pages` 的**语法前端**：把自己的格式解析成数组 IR 后，节点编译、校验、插值、属性透传全部由 pages 包的共享编译器完成（IR 契约见 migears/pages 的 spec.md）。本包只保留 XML 解析层与少量拼写钩子。
+两者都是 `migears/pages` 的**语法前端**：把自己的格式解析成数组 IR 后，节点编译、校验、插值、属性透传全部由 pages 包的共享编译器完成（IR 契约见 migears/pages 的 SPEC.md）。本包只保留 XML 解析层与少量拼写钩子。
 
 它解决三个问题：
 

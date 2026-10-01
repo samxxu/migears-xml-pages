@@ -7,7 +7,7 @@ namespace MiGears\XmlPages\Tests;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Both frontend packages ship the same set of bundled components (see spec.md §10,
+ * Both frontend packages ship the same set of bundled components (see SPEC.md §10,
  * the copy note).
  *
  * "Change one place, sync the other" is a documented promise; this test turns it

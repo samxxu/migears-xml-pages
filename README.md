@@ -22,6 +22,22 @@ Sister package of `migears/yaml-pages`: the same declarative DSL expressed in XM
 - Built-in components (`card`, `button`, `alert`, `badge`) plus custom components written per miGears Template conventions
 - Deliberately out of scope: business logic, event handling, state management, routing, runtime XML parsing — those belong to the front-end framework you pair it with
 
+## Boundaries
+
+**In scope**
+
+- Parsing `.page.xml` declarations into the array node model of `migears/pages` and handing them to the shared compiler — the parse layer is all that stays here.
+- The XML surface syntax and the spellings XML forces on attribute names: element name is the node type, fields go in attributes, text goes in element text, container children, `__event` for `@event`, and `<attr>` for names XML cannot express.
+- XML-specific parse-time refusals: every libxml syntax error with its line, a non-`<page>` root, entity declarations, bare text/CDATA inside containers, unknown attributes and child elements, a misplaced `<attr>`, and attributes on `<data>` children.
+- The `bin/xml-pages` CLI (single file or directory, `--check`) and the bundled `components/` (`card` / `button` / `alert` / `badge`).
+
+**Not in scope (by design)**
+
+- The node vocabulary, validation, `{{ path }}` interpolation, attribute-passthrough rules and the compilation itself — inherited from `migears/pages`, which owns them once for every frontend.
+- The second compilation (sugar → pure PHP) and rendering — `migears/template`'s `TemplateCompiler`; the declaration layer never enters runtime.
+- The YAML spelling of the same DSL — the sister frontend `migears/yaml-pages`; only the parse layer differs, and the two artifacts are required to be identical.
+- Business logic, event handling, state management, routing and runtime XML parsing — left to the front-end framework you pair it with.
+
 ## How It Works
 
 **Two deliberate compilations:**
@@ -431,6 +447,22 @@ MIT
 - 通用容器 `<el tag="...">`，给 `x-data` 这类包裹层属性一个落点
 - 内置组件（`card`、`button`、`alert`、`badge`），自定义组件按 miGears Template 规范编写
 - 明确不做：业务逻辑、事件处理、状态管理、路由、运行期解析 XML —— 这些交给你搭配的前端框架
+
+## 边界
+
+**范围内**
+
+- 把 `.page.xml` 声明解析为 `migears/pages` 的数组节点模型，再交给共享编译器 —— 留在这里的只有解析层。
+- XML 表层语法，以及 XML 强加于属性名的拼写：元素名即节点类型、字段走属性、文本走元素文本、容器子元素、`__event` 对应 `@event`、用 `<attr>` 表达 XML 拼不出的属性名。
+- XML 特有的解析期拒绝：逐行列出 libxml 语法错误、根元素必须是 `<page>`、实体声明、容器里裸写的文本/CDATA、未知属性与子元素、错位的 `<attr>`，以及 `<data>` 子元素上的属性。
+- `bin/xml-pages` CLI（单文件或目录、`--check`）与内置 `components/`（`card` / `button` / `alert` / `badge`）。
+
+**范围外（刻意不做）**
+
+- 节点词汇、校验、`{{ path }}` 插值、属性透传规则与实际编译 —— 全部继承自 `migears/pages`，由它为所有前端统一持有。
+- 第二次编译（糖语法 → 纯 PHP）与渲染 —— 归 `migears/template` 的 `TemplateCompiler`；声明层不进入运行期。
+- 同一套 DSL 的 YAML 写法 —— 归姊妹前端 `migears/yaml-pages`；只有解析层不同，且要求两者产物完全一致。
+- 业务逻辑、事件处理、状态管理、路由，以及运行期解析 XML —— 交给你搭配的前端框架。
 
 ## 工作原理
 

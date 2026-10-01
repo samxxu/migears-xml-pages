@@ -1189,6 +1189,31 @@ final class CompilerTest extends TestCase
         );
     }
 
+    public function testEntityDeclarationsWithAnyNameAreRefused(): void
+    {
+        // The scan tells a declaration from the text that only talks about one by
+        // its keyword and the name token after it — not by an ASCII spelling of
+        // that name. XML names may begin with any letter, so a name like 'é' (or
+        // the '%' of a parameter entity) slipped past an ASCII-only class: libxml
+        // then declared the entity and the reference expanded, which is the silent
+        // loss this rule exists to refuse.
+        $this->expectError(
+            '<!DOCTYPE page [<!ENTITY é "EXPANDED">]><page><body><text>&é;</text></body></page>',
+            'entity declarations are not supported'
+        );
+        // The external form is the one the rule was written for: LIBXML_NONET
+        // fetches nothing, so &ü; expanded to nothing and the value disappeared.
+        $this->expectError(
+            '<!DOCTYPE page [<!ENTITY ü SYSTEM "file:///etc/hostname">]><page><body><text>&ü;</text></body></page>',
+            'a reference to <!ENTITY ü> would either expand to nothing'
+        );
+        // A parameter-entity declaration is a declaration too.
+        $this->expectError(
+            '<!DOCTYPE page [<!ENTITY % pe "bar">]><page><body><text>A</text></body></page>',
+            'entity declarations are not supported'
+        );
+    }
+
     public function testReservedLoopVariableNamesAreRejectedFromHereToo(): void
     {
         // The rule lives in the shared compiler, and XML reaches it through its own
