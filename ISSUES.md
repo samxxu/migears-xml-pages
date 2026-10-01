@@ -17,19 +17,21 @@ Legend — **P0** functional or security · **P1** documentation that fails when
 
 | | |
 |---|---|
-| Unsettled | P0 0 · P1 0 · P2 0 · P3 4 · other 0 |
-| Settled | 0 of 4 |
-| Waiting on the owner | `P3-1`, `P3-2`, `P3-3`, `P3-4` |
-| Waiting on the reviewer | _nothing_ |
+| Unsettled | P0 0 · P1 0 · P2 0 · P3 2 · other 0 |
+| Settled | 4 of 6 |
+| Waiting on the owner | `P3-5` |
 | Waiting on the coordinator | _nothing_ |
-| Deferred, owing nobody | _nothing_ |
+| Waiting on the reviewer | _nothing_ |
+| Deferred, owing nobody | `P3-3` |
 
 | id | level | status | title |
 |---|---|---|---|
-| [`P3-1`](issues/P3-1.md) | P3 | **open** | Size against its own claim: `src/Compiler.php` is 710 lines for 'read … |
-| [`P3-2`](issues/P3-2.md) | P3 | **open** | A section whose name is empty after trimming gets different wording … |
-| [`P3-3`](issues/P3-3.md) | P3 | **open** | The same semantic value is accepted differently by the two front ends: … |
-| [`P3-4`](issues/P3-4.md) | P3 | **open** | The entity pre-scan runs a regex over the raw source, so `<!-- <!ENTITY … |
+| [`P2-1`](issues/P2-1.md) | P2 | **verified** | The entity pre-scan recognised a declaration only by an ASCII name … |
+| [`P3-1`](issues/P3-1.md) | P3 | **verified** | Size against its own claim: `src/Compiler.php` is 710 lines for 'read … |
+| [`P3-2`](issues/P3-2.md) | P3 | **verified** | A section whose name is empty after trimming gets different wording … |
+| [`P3-3`](issues/P3-3.md) | P3 | **deferred** | The same semantic value is accepted differently by the two front ends: … |
+| [`P3-4`](issues/P3-4.md) | P3 | **verified** | The entity pre-scan runs a regex over the raw source, so `<!-- <!ENTITY … |
+| [`P3-5`](issues/P3-5.md) | P3 | **open** | The module's own `ATTR_NAME_PATTERN` did not receive the lookahead that … |
 
 ## Unclosed
 
@@ -38,16 +40,14 @@ highest severity first. `waiting on` is the party who acts next, read from that 
 
 | | |
 |---|---|
-| Unclosed | **4** of 4 |
-| By status | `open` 4 |
-| Waiting on | owner 4 |
+| Unclosed | **2** of 6 |
+| By status | `open` 1 · `deferred` 1 |
+| Waiting on | owner 1 · - 1 |
 
 | level | item | status | waiting on | title |
 |---|---|---|---|---|
-| **P3** | [`P3-1`](issues/P3-1.md) | `open` | owner | Size against its own claim: `src/Compiler.php` is 710 lines for 'read … |
-| **P3** | [`P3-2`](issues/P3-2.md) | `open` | owner | A section whose name is empty after trimming gets different wording … |
-| **P3** | [`P3-3`](issues/P3-3.md) | `open` | owner | The same semantic value is accepted differently by the two front ends: … |
-| **P3** | [`P3-4`](issues/P3-4.md) | `open` | owner | The entity pre-scan runs a regex over the raw source, so `<!-- <!ENTITY … |
+| **P3** | [`P3-3`](issues/P3-3.md) | `deferred` | - | The same semantic value is accepted differently by the two front ends: … |
+| **P3** | [`P3-5`](issues/P3-5.md) | `open` | owner | The module's own `ATTR_NAME_PATTERN` did not receive the lookahead that … |
 
 ## Verdict
 
@@ -88,19 +88,21 @@ No test for XML with external entity references (XXE protection verification); n
 
 | | |
 |---|---|
-| 未了结 | P0 0 · P1 0 · P2 0 · P3 4 · 其他 0 |
-| 已了结 | 0 / 4 |
-| 等负责人 | `P3-1`, `P3-2`, `P3-3`, `P3-4` |
-| 等评审方 | _无_ |
+| 未了结 | P0 0 · P1 0 · P2 0 · P3 2 · 其他 0 |
+| 已了结 | 4 / 6 |
+| 等模块主 | `P3-5` |
 | 等协调人 | _无_ |
-| 已暂缓，不欠谁 | _无_ |
+| 等评审方 | _无_ |
+| 已暂缓，不欠谁 | `P3-3` |
 
 | id | 级别 | 状态 | 标题 |
 |---|---|---|---|
-| [`P3-1`](issues/P3-1.md) | P3 | **open** | 与自身声明相比偏大：src/Compiler.php 为「把 XML 读成数组 IR」用了 710 行，超过 spec 提到的约 500 … |
-| [`P3-2`](issues/P3-2.md) | P3 | **open** | section 名 trim 后为空的文案与 YAML 侧不同：XML 报 "sections[0]: section is missing … |
-| [`P3-3`](issues/P3-3.md) | P3 | **open** | 同一语义值在两个前端的接受面不同：XML 走 HTML 布尔语义，required="1"、"yes"、"on"、""、"required" … |
-| [`P3-4`](issues/P3-4.md) | P3 | **open** | 实体预扫描对原始源码跑正则，因此 <!-- <!ENTITY x "y"> --> 也会被当作实体声明拒绝，尽管 libxml … |
+| [`P2-1`](issues/P2-1.md) | P2 | **verified** | 实体预扫描只按 ASCII 名称字符类识别声明，因此 `<!ENTITY é …>` 与 `<!ENTITY % pe …>` 被 … |
+| [`P3-1`](issues/P3-1.md) | P3 | **verified** | 与自身声明相比偏大：src/Compiler.php 为「把 XML 读成数组 IR」用了 710 行，超过 spec 提到的约 500 … |
+| [`P3-2`](issues/P3-2.md) | P3 | **verified** | section 名 trim 后为空的文案与 YAML 侧不同：XML 报 "sections[0]: section is missing … |
+| [`P3-3`](issues/P3-3.md) | P3 | **deferred** | 同一语义值在两个前端的接受面不同：XML 走 HTML 布尔语义，required="1"、"yes"、"on"、""、"required" … |
+| [`P3-4`](issues/P3-4.md) | P3 | **verified** | 实体预扫描对原始源码跑正则，因此 <!-- <!ENTITY x "y"> --> 也会被当作实体声明拒绝，尽管 libxml … |
+| [`P3-5`](issues/P3-5.md) | P3 | **open** | 模块自己的 `ATTR_NAME_PATTERN` 没有收到 `migears-pages` `P3-4` … |
 
 ## 未关闭
 
@@ -109,16 +111,14 @@ No test for XML with external entity references (XXE protection verification); n
 
 | | |
 |---|---|
-| 未关闭 | **4** / 4 |
-| 按状态 | `open` 4 |
-| 等在谁 | 负责人 4 |
+| 未关闭 | **2** / 6 |
+| 按状态 | `open` 1 · `deferred` 1 |
+| 等在谁 | 模块主 1 · - 1 |
 
 | 级别 | 条目 | 状态 | 等在谁 | 标题 |
 |---|---|---|---|---|
-| **P3** | [`P3-1`](issues/P3-1.md) | `open` | 负责人 | 与自身声明相比偏大：src/Compiler.php 为「把 XML 读成数组 IR」用了 710 行，超过 spec 提到的约 500 … |
-| **P3** | [`P3-2`](issues/P3-2.md) | `open` | 负责人 | section 名 trim 后为空的文案与 YAML 侧不同：XML 报 "sections[0]: section is missing … |
-| **P3** | [`P3-3`](issues/P3-3.md) | `open` | 负责人 | 同一语义值在两个前端的接受面不同：XML 走 HTML 布尔语义，required="1"、"yes"、"on"、""、"required" … |
-| **P3** | [`P3-4`](issues/P3-4.md) | `open` | 负责人 | 实体预扫描对原始源码跑正则，因此 <!-- <!ENTITY x "y"> --> 也会被当作实体声明拒绝，尽管 libxml … |
+| **P3** | [`P3-3`](issues/P3-3.md) | `deferred` | - | 同一语义值在两个前端的接受面不同：XML 走 HTML 布尔语义，required="1"、"yes"、"on"、""、"required" … |
+| **P3** | [`P3-5`](issues/P3-5.md) | `open` | 模块主 | 模块自己的 `ATTR_NAME_PATTERN` 没有收到 `migears-pages` `P3-4` … |
 
 ## 结论
 
